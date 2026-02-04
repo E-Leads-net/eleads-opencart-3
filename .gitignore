@@ -1,8 +1,5 @@
-# Build (keep only builder script tracked)
-build/*
-!build/
-!build/scripts/
-!build/scripts/build.sh
+# Build artifacts
+build/
 
 # OS files
 .DS_Store

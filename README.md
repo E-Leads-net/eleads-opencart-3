@@ -1,16 +1,133 @@
-# E-Leads OpenCart Module
+# E-Leads — Module for OpenCart 3.x
 
-## Build
-```bash
-./build/scripts/build.sh
+## Overview
+E-Leads adds a product export feed (YML/XML) and optional product synchronization with the E-Leads platform.
+The module provides:
+- A configurable export feed: categories, attributes, options, shop info, images, descriptions.
+- A public feed URL for each language.
+- Optional synchronization of product changes (create/update/delete) to E-Leads via API.
+- An API Key gate that locks settings until a valid key is provided.
+- Built-in module update from GitHub.
+- Optional widget loader tag injection into the current storefront theme.
+
+## Compatibility
+- OpenCart: 3.x
+- PHP: according to your OpenCart 3.x requirements.
+
+## Installation
+1. In admin: **Extensions → Installer**.
+2. Upload release archive: `eleads-opencart-3.x.ocmod.zip`.
+3. Go to **Extensions → Modifications** and click **Refresh**.
+4. Go to **Extensions → Extensions → Modules**, find **E-Leads**, click **Install** and then **Edit**.
+
+## Feed URL
+The feed is available at:
+```
+/eleads-yml/{lang}.xml
+```
+Examples:
+- `/eleads-yml/en.xml`
+- `/eleads-yml/ru.xml`
+- `/eleads-yml/uk.xml`
+
+If an access key is configured:
+```
+/eleads-yml/en.xml?key=YOUR_KEY
 ```
 
-## Artifact
-- build/releases/eleads-opencart-3.x.ocmod.zip
+## Admin Tabs
+### 1) Export Settings
+- **Feed URLs** per language (copy / download).
+- **Categories and subcategories**: only selected categories are exported.
+- **Attribute filters** (optional): selected attributes are marked with `filter="true"`.
+- **Option filters** (optional): selected options are marked with `filter="true"`.
+- **Group products**:
+  - **Enabled**: one `<offer>` per product, options are aggregated into one `<param name="Options">` value.
+  - **Disabled**: variants can be exported as separate offers.
+- **Shop name / Email / Shop URL / Currency**: used in `<shop>`.
+- **Picture limit**: max number of `<picture>` tags per offer.
+- **Short description source**: defines which field is used for `<short_description>`.
+- **Sync toggle**: enables/disables API sync of product changes.
 
-Repository: https://github.com/E-Leads-net/eleads-opencart-3
+### 2) API Key
+- Enter and validate the E-Leads API Key.
+- Token status is checked when opening module settings.
+- Without a valid key, settings are locked.
 
-# Changelog
+### 3) Update
+- Shows local version and latest version from GitHub.
+- Updates the module directly from this repository.
 
-## 0.1.7
-- Initial split repository release
+## Feed Structure (Excerpt)
+```xml
+<yml_catalog date="YYYY-MM-DD HH:MM">
+  <shop>
+    <shopName>...</shopName>
+    <email>...</email>
+    <url>...</url>
+    <language>...</language>
+    <categories>
+      <category id="..." parentId="..." position="..." url="...">...</category>
+    </categories>
+    <offers>
+      <offer id="..." group_id="..." available="true|false">
+        <url>...</url>
+        <name>...</name>
+        <price>...</price>
+        <old_price>...</old_price>
+        <currency>...</currency>
+        <categoryId>...</categoryId>
+        <quantity>...</quantity>
+        <stock_status>...</stock_status>
+        <picture>...</picture>
+        <vendor>...</vendor>
+        <sku>...</sku>
+        <label/>
+        <order>...</order>
+        <description>...</description>
+        <short_description>...</short_description>
+        <param name="...">...</param>
+        <param filter="true" name="...">...</param>
+      </offer>
+    </offers>
+  </shop>
+</yml_catalog>
+```
+
+## Widget Loader Tag Injection
+On module enable:
+- The module requests loader tag from:
+  `https://stage-api.e-leads.net/v1/widgets-loader-tag`
+- The tag is injected into the active theme footer template.
+
+On module disable:
+- The injected block is removed.
+
+If the tag request fails, nothing is inserted.
+
+## Module Structure
+```text
+upload/
+├─ admin/controller/extension/module/eleads.php
+├─ admin/language/en-gb/extension/module/eleads.php
+├─ admin/view/template/extension/module/eleads.twig
+├─ catalog/controller/extension/module/eleads.php
+└─ system/library/eleads/
+   ├─ api_routes.php
+   ├─ feed_engine.php
+   ├─ offer_builder.php
+   ├─ sync_service.php
+   ├─ update_helper.php
+   └─ ...
+install.xml
+```
+
+## Repository & Release
+- Repository: `https://github.com/E-Leads-net/eleads-opencart-3`
+- Build/release is automated via `.github/workflows/release.yml` on tag `v*`.
+
+## Notes for Marketplace Review
+- The module does not modify core files directly.
+- API routes are centralized in `upload/system/library/eleads/api_routes.php`.
+- Feed is generated on demand via URL.
+- Sync can be enabled/disabled at any time.

@@ -17,7 +17,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build archive
-        run: ./build/scripts/build.sh
+        run: |
+          set -euo pipefail
+          mkdir -p build/releases
+          stage="$(mktemp -d)"
+          cp install.xml "$stage/install.xml"
+          cp -R upload "$stage/upload"
+          (cd "$stage" && zip -qr "$GITHUB_WORKSPACE/build/releases/eleads-opencart-3.x.ocmod.zip" install.xml upload)
+          rm -rf "$stage"
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2

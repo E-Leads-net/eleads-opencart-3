@@ -2,7 +2,7 @@
 <modification>
   <name>E-Leads OpenCart 3</name>
   <code>eleads_oc3</code>
-  <version>0.1.7</version>
+  <version>0.1.8</version>
   <author>E-Leads</author>
 
   <file path="catalog/controller/startup/seo_url.php">
