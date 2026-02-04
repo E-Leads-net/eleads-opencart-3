@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<modification>
+  <name>E-Leads OpenCart 3</name>
+  <code>eleads_oc3</code>
+  <version>0.1.6</version>
+  <author>E-Leads</author>
+
+  <file path="catalog/controller/startup/seo_url.php">
+    <operation>
+      <search><![CDATA[public function index() {]]></search>
+      <add position="after"><![CDATA[
+		// E-Leads feed route
+		if (isset($this->request->get['_route_'])) {
+			$route = trim($this->request->get['_route_'], '/');
+			if (preg_match('#^eleads-yml/([a-zA-Z_-]+)\.xml$#', $route, $m)) {
+				$this->request->get['route'] = 'extension/module/eleads';
+				$this->request->get['lang'] = $m[1];
+				return;
+			}
+		}
+]]></add>
+    </operation>
+  </file>
+</modification>

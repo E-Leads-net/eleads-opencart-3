@@ -1,0 +1,536 @@
+{{ header }}{{ column_left }}
+<div id="content">
+  <div class="page-header">
+    <div class="container-fluid">
+      <div class="pull-right">
+        <button type="submit" form="form-eleads" data-toggle="tooltip" title="{{ button_save }}" class="btn btn-primary"><i class="fa fa-save"></i></button>
+        <a href="{{ cancel }}" data-toggle="tooltip" title="{{ button_cancel }}" class="btn btn-default"><i class="fa fa-reply"></i></a>
+      </div>
+      <h1>{{ heading_title }}</h1>
+      <ul class="breadcrumb">
+        {% for breadcrumb in breadcrumbs %}
+          <li><a href="{{ breadcrumb.href }}">{{ breadcrumb.text }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="container-fluid">
+    {% if success %}
+      <div class="alert alert-success"><i class="fa fa-check-circle"></i> {{ success }}</div>
+    {% endif %}
+    {% if error %}
+      <div class="alert alert-danger"><i class="fa fa-exclamation-circle"></i> {{ error }}</div>
+    {% endif %}
+    {% if error_warning %}
+      <div class="alert alert-danger"><i class="fa fa-exclamation-circle"></i> {{ error_warning }}</div>
+    {% endif %}
+
+    <style>
+      #content .eleads-wrap {max-width: 1200px;}
+      #content .eleads-card {background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);}
+      #content .eleads-card .panel-heading {background: #f8fafc; border-bottom: 1px solid #e5e7eb; border-top-left-radius: 10px; border-top-right-radius: 10px;}
+      #content .eleads-card .panel-body {padding: 20px;}
+      #content .eleads-tabs .nav-tabs {border-bottom: 0; margin: 0; padding: 12px 12px 0 16px;}
+      #content .eleads-tabs .nav-tabs > li > a {border: 0; border-radius: 8px; margin-right: 6px; background: #f1f5f9; color: #0f172a;}
+      #content .eleads-tabs .nav-tabs > li.active > a,
+      #content .eleads-tabs .nav-tabs > li.active > a:focus,
+      #content .eleads-tabs .nav-tabs > li.active > a:hover {background: #0f172a; color: #fff;}
+      #content .eleads-section {margin-bottom: 16px;}
+      #content .eleads-tree {border: 1px solid #e5e7eb; border-radius: 10px; padding: 8px; max-height: 360px; overflow: auto; background: #fff;}
+      #content .eleads-tree-list {list-style: none; margin: 0; padding-left: 0;}
+      #content .eleads-tree-item {display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 4px 2px;}
+      #content .eleads-tree-children {width: 100%; margin-left: 22px; padding-left: 10px; border-left: 1px dashed #e5e7eb; display: none;}
+      #content .eleads-tree-item.is-open > .eleads-tree-children {display: block;}
+      #content .eleads-tree-toggle {width: 18px; height: 18px; border: 1px solid #cbd5f5; border-radius: 6px; background: #f8fafc; color: #0f172a; font-size: 12px; line-height: 1; padding: 0; cursor: pointer;}
+      #content .eleads-tree-toggle::after {content: "+";}
+      #content .eleads-tree-item.is-open > .eleads-tree-toggle::after {content: "−";}
+      #content .eleads-tree-spacer {display: inline-block; width: 18px; height: 18px;}
+      #content .eleads-tree-label {display: inline-flex; align-items: center; gap: 8px; cursor: pointer;}
+      #content .eleads-tree-label input {position: absolute; opacity: 0; pointer-events: none;}
+      #content .eleads-tree-box {width: 16px; height: 16px; border: 1px solid #94a3b8; border-radius: 4px; background: #f8fafc; display: inline-flex; align-items: center; justify-content: center; color: #0f172a; font-size: 12px; line-height: 1;}
+      #content .eleads-tree-label input:checked + .eleads-tree-box {background: #d1fae5; border-color: #86efac;}
+      #content .eleads-tree-label input:checked + .eleads-tree-box::after {content: "+";}
+      #content .eleads-tree-label input:indeterminate + .eleads-tree-box {background: #e0f2fe; border-color: #7dd3fc;}
+      #content .eleads-tree-label input:indeterminate + .eleads-tree-box::after {content: "−";}
+      #content .eleads-tree-label.is-indeterminate .eleads-tree-box {background: #e0f2fe; border-color: #7dd3fc;}
+      #content .eleads-tree-label.is-indeterminate .eleads-tree-box::after {content: "−";}
+      #content .eleads-btn-group .btn {border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; color: #0f172a; margin-right: 6px;}
+      #content .eleads-btn-group .btn:last-child {margin-right: 0;}
+      #content .eleads-btn-group .btn:hover {background: #e2e8f0;}
+      #content .eleads-btn-group .btn:active {background: #cbd5f5;}
+      #content .eleads-help {color: #64748b; font-size: 12px;}
+      #content .eleads-pill {display: inline-block; padding: 4px 8px; border-radius: 999px; background: #e2e8f0; font-size: 12px;}
+    </style>
+    {% if api_key_required %}
+      <form action="{{ action }}" method="post" enctype="multipart/form-data" id="form-eleads" class="form-horizontal eleads-wrap">
+        <div class="panel panel-default eleads-card">
+          <div class="panel-heading"><strong>{{ entry_api_key_title }}</strong></div>
+          <div class="panel-body">
+            <p class="help-block">{{ entry_api_key_hint }}</p>
+            {% if api_key_error %}
+              <div class="alert alert-danger"><i class="fa fa-exclamation-circle"></i> {{ text_api_key_invalid }}</div>
+            {% endif %}
+            <div class="form-group">
+              <label class="col-sm-2 control-label">{{ entry_api_key }}</label>
+              <div class="col-sm-10">
+                <input type="text" name="module_eleads_api_key" value="{{ api_key_value }}" class="form-control"/>
+                <input type="hidden" name="module_eleads_api_key_submit" value="1"/>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary">{{ button_save }}</button>
+          </div>
+        </div>
+      </form>
+    {% else %}
+    <form action="{{ action }}" method="post" enctype="multipart/form-data" id="form-eleads" class="form-horizontal eleads-wrap">
+      <div class="panel panel-default eleads-card eleads-tabs">
+        <div class="panel-heading">
+          <ul class="nav nav-tabs">
+            <li class="active"><a href="#tab-export" data-toggle="tab">{{ tab_export }}</a></li>
+            <li><a href="#tab-api" data-toggle="tab">{{ tab_api }}</a></li>
+            <li><a href="#tab-update" data-toggle="tab">{{ tab_update }}</a></li>
+          </ul>
+        </div>
+        <div class="panel-body">
+          <div class="tab-content">
+            <div class="tab-pane active" id="tab-export">
+              <div class="row">
+                <div class="col-sm-12">
+                  <div class="panel panel-default eleads-card eleads-section">
+                  <div class="panel-heading"><strong>Feed URLs</strong></div>
+                  <div class="panel-body">
+                      <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                          <thead>
+                            <tr>
+                              <th>Feed Name</th>
+                              <th>Feed URL</th>
+                              <th style="width: 180px;">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {% for feed in feed_urls %}
+                              <tr>
+                                <td>{{ feed.name }}</td>
+                                <td>
+                                  <a href="{{ feed.url }}" target="_blank">{{ feed.url }}</a>
+                                </td>
+                              <td>
+                                  <button type="button" class="btn btn-default btn-xs eleads-copy-btn" data-url="{{ feed.url }}">Copy</button>
+                                  <a class="btn btn-default btn-xs" href="{{ feed.url }}" download="eleads-{{ feed.code }}.xml">Save</a>
+                                </td>
+                              </tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-sm-12">
+                <div class="panel panel-default eleads-card eleads-section">
+                  <div class="panel-heading"><strong>{{ entry_status }}</strong></div>
+                  <div class="panel-body">
+                    <div class="form-group">
+                      <label class="col-sm-2 control-label">{{ entry_status }}</label>
+                      <div class="col-sm-10">
+                        <select name="module_eleads_status" class="form-control">
+                          <option value="1" {% if module_eleads_status %}selected{% endif %}>{{ text_enabled }}</option>
+                          <option value="0" {% if not module_eleads_status %}selected{% endif %}>{{ text_disabled }}</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+              <div class="row">
+                <div class="col-sm-12">
+                  <div class="panel panel-default eleads-card eleads-section">
+                    <div class="panel-heading"><strong>{{ tab_export }}</strong></div>
+                    <div class="panel-body">
+          <div class="form-group">
+            <label class="col-sm-2 control-label">{{ entry_access_key }}</label>
+            <div class="col-sm-10">
+              <input type="text" name="module_eleads_access_key" value="{{ module_eleads_access_key }}" class="form-control"/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="col-sm-2 control-label">{{ entry_categories }}</label>
+            <div class="col-sm-10">
+              <div class="btn-group btn-group-sm eleads-btn-group" role="group" style="margin-bottom: 8px;">
+                <button type="button" class="btn btn-default" id="eleads-categories-all" onclick="eleadsSelectAllCategories(true)">Select all</button>
+                <button type="button" class="btn btn-default" id="eleads-categories-none" onclick="eleadsSelectAllCategories(false)">Select none</button>
+              </div>
+              <div class="eleads-tree" id="eleads-categories-tree">
+                {{ categories_tree_html|raw }}
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="col-sm-2 control-label">{{ entry_filter_attributes_toggle }}</label>
+            <div class="col-sm-10">
+              <select name="module_eleads_filter_attributes_enabled" class="form-control" id="eleads-filter-attributes-toggle">
+                <option value="1" {% if module_eleads_filter_attributes_enabled %}selected{% endif %}>{{ text_enabled }}</option>
+                <option value="0" {% if not module_eleads_filter_attributes_enabled %}selected{% endif %}>{{ text_disabled }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group eleads-filter-attributes-block" {% if not module_eleads_filter_attributes_enabled %}style="display:none"{% endif %}>
+            <label class="col-sm-2 control-label">{{ entry_filter_attributes }}</label>
+            <div class="col-sm-10">
+              <div class="btn-group btn-group-sm eleads-btn-group" role="group" style="margin-bottom: 8px;">
+                <button type="button" class="btn btn-default" id="eleads-attributes-all">Select all</button>
+                <button type="button" class="btn btn-default" id="eleads-attributes-none">Select none</button>
+              </div>
+              <div class="eleads-tree">
+                <ul class="eleads-tree-list eleads-attributes-list">
+                  {% for attribute in attributes %}
+                    <li class="eleads-tree-item">
+                      <span class="eleads-tree-spacer"></span>
+                      <label class="eleads-tree-label">
+                        <input type="checkbox" name="module_eleads_filter_attributes[]" value="{{ attribute.attribute_id }}" {% if attribute.attribute_id in module_eleads_filter_attributes %}checked{% endif %}>
+                        <span class="eleads-tree-box"></span>
+                        <span class="eleads-tree-text">{{ attribute.name }}</span>
+                      </label>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="col-sm-2 control-label">{{ entry_filter_option_values_toggle }}</label>
+            <div class="col-sm-10">
+              <select name="module_eleads_filter_option_values_enabled" class="form-control" id="eleads-filter-options-toggle">
+                <option value="1" {% if module_eleads_filter_option_values_enabled %}selected{% endif %}>{{ text_enabled }}</option>
+                <option value="0" {% if not module_eleads_filter_option_values_enabled %}selected{% endif %}>{{ text_disabled }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group eleads-filter-options-block" {% if not module_eleads_filter_option_values_enabled %}style="display:none"{% endif %}>
+            <label class="col-sm-2 control-label">{{ entry_filter_option_values }}</label>
+            <div class="col-sm-10">
+              <div class="btn-group btn-group-sm eleads-btn-group" role="group" style="margin-bottom: 8px;">
+                <button type="button" class="btn btn-default" id="eleads-options-all">Select all</button>
+                <button type="button" class="btn btn-default" id="eleads-options-none">Select none</button>
+              </div>
+              <div class="eleads-tree">
+                <ul class="eleads-tree-list eleads-options-list">
+                  {% for option in options %}
+                    {% if option.option_value is defined %}
+                      {% for value in option.option_value %}
+                        <li class="eleads-tree-item">
+                          <span class="eleads-tree-spacer"></span>
+                          <label class="eleads-tree-label">
+                            <input type="checkbox" name="module_eleads_filter_option_values[]" value="{{ value.option_value_id }}" {% if value.option_value_id in module_eleads_filter_option_values %}checked{% endif %}>
+                            <span class="eleads-tree-box"></span>
+                            <span class="eleads-tree-text">{{ option.name }}: {{ value.name }}</span>
+                          </label>
+                        </li>
+                      {% endfor %}
+                    {% endif %}
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="col-sm-2 control-label">{{ entry_grouped }}</label>
+            <div class="col-sm-10">
+              <select name="module_eleads_grouped" class="form-control">
+                <option value="1" {% if module_eleads_grouped %}selected{% endif %}>{{ text_enabled }}</option>
+                <option value="0" {% if not module_eleads_grouped %}selected{% endif %}>{{ text_disabled }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="col-sm-2 control-label">{{ entry_sync_enabled }}</label>
+            <div class="col-sm-10">
+              <select name="module_eleads_sync_enabled" class="form-control">
+                <option value="1" {% if module_eleads_sync_enabled %}selected{% endif %}>{{ text_enabled }}</option>
+                <option value="0" {% if not module_eleads_sync_enabled %}selected{% endif %}>{{ text_disabled }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="col-sm-2 control-label">{{ entry_picture_limit }}</label>
+            <div class="col-sm-10">
+              <input type="number" name="module_eleads_picture_limit" value="{{ module_eleads_picture_limit }}" class="form-control"/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="col-sm-2 control-label">{{ entry_image_size }}</label>
+            <div class="col-sm-10">
+              <input type="text" name="module_eleads_image_size" value="{{ module_eleads_image_size }}" class="form-control"/>
+              <div class="help-block">{{ help_image_size }}</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="col-sm-2 control-label">{{ entry_short_description_source }}</label>
+            <div class="col-sm-10">
+              <select name="module_eleads_short_description_source" class="form-control">
+                <option value="meta_description" {% if module_eleads_short_description_source == 'meta_description' %}selected{% endif %}>Meta Description</option>
+                <option value="description" {% if module_eleads_short_description_source == 'description' %}selected{% endif %}>Description</option>
+              </select>
+            </div>
+          </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane" id="tab-api">
+              <div class="row">
+                <div class="col-sm-8">
+                <div class="panel panel-default eleads-card eleads-section">
+                  <div class="panel-heading"><strong>{{ tab_api }}</strong></div>
+                  <div class="panel-body">
+                      <div class="form-group">
+                        <label class="col-sm-2 control-label">{{ entry_api_key }}</label>
+                        <div class="col-sm-10">
+                          <input type="text" name="module_eleads_api_key" value="{{ module_eleads_api_key }}" class="form-control"/>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane" id="tab-update">
+              <div class="row">
+                <div class="col-sm-8">
+                <div class="panel panel-default eleads-card eleads-section">
+                  <div class="panel-heading"><strong>{{ tab_update }}</strong></div>
+                  <div class="panel-body">
+                      <p>Local version: {{ update_info.local_version }}</p>
+                      <p>Latest version: {{ update_info.latest_version }}</p>
+                      {% if update_info.update_available %}
+                        <a href="{{ update_url }}" class="btn btn-warning">{{ text_update }}</a>
+                      {% else %}
+                        <span class="label label-success eleads-pill">Up to date</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+    {% endif %}
+    <script>
+      (function() {
+        window.eleadsSelectAllCategories = function(checked) {
+          var tree = document.getElementById('eleads-categories-tree');
+          if (!tree) return;
+          var boxes = tree.querySelectorAll('input[type="checkbox"]');
+          Array.prototype.forEach.call(boxes, function(cb) {
+            cb.checked = checked;
+            cb.indeterminate = false;
+            var label = cb.closest('.eleads-tree-label');
+            if (label) label.classList.remove('is-indeterminate');
+          });
+        };
+
+        var allBtn = document.getElementById('eleads-categories-all');
+        var noneBtn = document.getElementById('eleads-categories-none');
+        var tree = document.getElementById('eleads-categories-tree');
+        if (!tree) return;
+
+        function copyText(text) {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(text);
+          }
+          var input = document.createElement('input');
+          input.value = text;
+          document.body.appendChild(input);
+          input.select();
+          try { document.execCommand('copy'); } catch (e) {}
+          document.body.removeChild(input);
+          return Promise.resolve();
+        }
+
+        var copyButtons = document.querySelectorAll('.eleads-copy-btn');
+        Array.prototype.forEach.call(copyButtons, function(btn) {
+          btn.addEventListener('click', function() {
+            var url = btn.getAttribute('data-url') || '';
+            copyText(url);
+          });
+        });
+
+        function getAllCheckboxes() {
+          return tree.querySelectorAll('input[type="checkbox"][name="module_eleads_categories[]"]');
+        }
+
+        function setLabelState(input) {
+          var label = input.closest('.eleads-tree-label');
+          if (!label) return;
+          if (input.indeterminate) {
+            label.classList.add('is-indeterminate');
+          } else {
+            label.classList.remove('is-indeterminate');
+          }
+        }
+
+        function updateNodeState(li) {
+          if (!li) return;
+          var checkbox = li.querySelector('.eleads-tree-label input[type="checkbox"]');
+          var childrenWrap = li.getElementsByClassName('eleads-tree-children')[0];
+          if (!checkbox || !childrenWrap) return;
+          var children = childrenWrap.querySelectorAll('input[type="checkbox"]');
+          if (!children.length) return;
+          var checkedCount = 0;
+          var indeterminateCount = 0;
+          Array.prototype.forEach.call(children, function(cb) {
+            if (cb.indeterminate) indeterminateCount++;
+            if (cb.checked) checkedCount++;
+          });
+          if (checkedCount === children.length) {
+            checkbox.checked = true;
+            checkbox.indeterminate = false;
+          } else if (checkedCount === 0 && indeterminateCount === 0) {
+            checkbox.checked = false;
+            checkbox.indeterminate = false;
+          } else {
+            checkbox.checked = false;
+            checkbox.indeterminate = true;
+          }
+          setLabelState(checkbox);
+        }
+
+        function updateParents(li) {
+          var parent = li.parentElement;
+          while (parent && parent !== tree) {
+            if (parent.classList && parent.classList.contains('eleads-tree-item')) {
+              updateNodeState(parent);
+            }
+            parent = parent.parentElement;
+          }
+        }
+
+        function setChildren(li, checked) {
+          var children = li.querySelectorAll('.eleads-tree-children input[type="checkbox"]');
+          Array.prototype.forEach.call(children, function(cb) {
+            cb.checked = checked;
+            cb.indeterminate = false;
+            setLabelState(cb);
+          });
+        }
+
+        function initTreeState() {
+          var items = tree.querySelectorAll('.eleads-tree-item');
+          Array.prototype.forEach.call(items, function(li) {
+            updateNodeState(li);
+          });
+          Array.prototype.forEach.call(items, function(li) {
+            var childrenWrap = li.getElementsByClassName('eleads-tree-children')[0];
+            if (!childrenWrap) return;
+            var children = childrenWrap.querySelectorAll('input[type="checkbox"]');
+            var open = false;
+            Array.prototype.forEach.call(children, function(cb) {
+              if (cb.checked || cb.indeterminate) {
+                open = true;
+              }
+            });
+            if (open) {
+              li.classList.add('is-open');
+            }
+          });
+        }
+
+        tree.addEventListener('click', function(e) {
+          var toggle = e.target.closest('.eleads-tree-toggle');
+          if (toggle) {
+            var li = toggle.closest('.eleads-tree-item');
+            if (li) li.classList.toggle('is-open');
+          }
+        });
+
+        tree.addEventListener('change', function(e) {
+          var input = e.target;
+          if (!input.matches('input[type="checkbox"][name="module_eleads_categories[]"]')) return;
+          var li = input.closest('.eleads-tree-item');
+          if (!li) return;
+          input.indeterminate = false;
+          setLabelState(input);
+          setChildren(li, input.checked);
+          updateParents(li);
+        });
+
+        if (allBtn) {
+          allBtn.addEventListener('click', function() {
+            Array.prototype.forEach.call(getAllCheckboxes(), function(cb) {
+              cb.checked = true;
+              cb.indeterminate = false;
+              setLabelState(cb);
+            });
+            initTreeState();
+          });
+        }
+        if (noneBtn) {
+          noneBtn.addEventListener('click', function() {
+            Array.prototype.forEach.call(getAllCheckboxes(), function(cb) {
+              cb.checked = false;
+              cb.indeterminate = false;
+              setLabelState(cb);
+            });
+            initTreeState();
+          });
+        }
+
+        var attrToggle = document.getElementById('eleads-filter-attributes-toggle');
+        var optToggle = document.getElementById('eleads-filter-options-toggle');
+        var attrBlock = document.querySelector('.eleads-filter-attributes-block');
+        var optBlock = document.querySelector('.eleads-filter-options-block');
+        function applyToggle(toggle, block) {
+          if (!toggle || !block) return;
+          block.style.display = toggle.value === '1' ? '' : 'none';
+        }
+        function refresh() {
+          applyToggle(attrToggle, attrBlock);
+          applyToggle(optToggle, optBlock);
+        }
+        if (attrToggle) attrToggle.addEventListener('change', refresh);
+        if (optToggle) optToggle.addEventListener('change', refresh);
+        initTreeState();
+        refresh();
+
+        function bindSelectAll(buttonId, checked) {
+          var btn = document.getElementById(buttonId);
+          if (!btn) return;
+          btn.addEventListener('click', function() {
+            var group = btn.closest('.form-group');
+            if (!group) return;
+            var items = group.querySelectorAll('input[type="checkbox"]');
+            Array.prototype.forEach.call(items, function(cb) {
+              cb.checked = checked;
+            });
+          });
+        }
+        bindSelectAll('eleads-attributes-all', true);
+        bindSelectAll('eleads-attributes-none', false);
+        bindSelectAll('eleads-options-all', true);
+        bindSelectAll('eleads-options-none', false);
+      })();
+    </script>
+  </div>
+</div>
+{{ footer }}
