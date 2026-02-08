@@ -15,6 +15,7 @@ $_['text_update_error'] = 'Update failed.';
 $_['text_api_key_required'] = 'API key is required to access settings.';
 $_['text_api_key_saved'] = 'API key saved.';
 $_['text_api_key_invalid'] = 'API key is invalid.';
+$_['text_seo_url_disabled'] = 'Enable SEO URLs in System → Settings → Server, then save settings. SEO Pages are available only when SEO URLs are enabled.';
 
 // Entry
 $_['entry_status'] = 'Status';
@@ -36,6 +37,7 @@ $_['entry_currency'] = 'Currency';
 $_['entry_picture_limit'] = 'Picture Limit';
 $_['entry_image_size'] = 'Image Size';
 $_['entry_short_description_source'] = 'Short Description Source';
+$_['entry_seo_pages'] = 'SEO Pages';
 
 // Help
 $_['help_image_size'] = 'Use "original" or WxH, e.g. 500x500.';
@@ -46,6 +48,7 @@ $_['button_cancel'] = 'Cancel';
 
 // Tabs
 $_['tab_export'] = 'Export';
+$_['tab_seo'] = 'SEO';
 $_['tab_api'] = 'API Key';
 $_['tab_update'] = 'Update';
 

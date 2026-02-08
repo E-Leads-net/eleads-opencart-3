@@ -2,7 +2,7 @@
 <modification>
   <name>E-Leads OpenCart 3</name>
   <code>eleads_oc3</code>
-  <version>0.1.8</version>
+  <version>0.1.9</version>
   <author>E-Leads</author>
 
   <file path="catalog/controller/startup/seo_url.php">
@@ -16,6 +16,18 @@
 				$this->request->get['route'] = 'extension/module/eleads';
 				$this->request->get['lang'] = $m[1];
 				return;
+			}
+			if ($route === 'e-search/sitemap-sync') {
+				$this->request->get['route'] = 'extension/module/eleads/sitemapSync';
+				return;
+			}
+			if (strpos($route, 'e-search/') === 0) {
+				$slug = substr($route, strlen('e-search/'));
+				if ($slug !== '') {
+					$this->request->get['route'] = 'extension/module/eleads/seoPage';
+					$this->request->get['slug'] = $slug;
+					return;
+				}
 			}
 		}
 ]]></add>

@@ -35,6 +35,38 @@ If an access key is configured:
 /eleads-yml/en.xml?key=YOUR_KEY
 ```
 
+## SEO Pages
+### Sitemap
+- URL: `/e-search/sitemap.xml`
+- Generated when **SEO Pages** is enabled.
+- Contains links in the form: `https://your-site.com/e-search/{slug}`
+
+### SEO Page Route
+- URL: `/e-search/{slug}`
+- The module requests page data from the E-Leads API and renders it using the standard product search results template (with filters).
+
+### Sitemap Sync Endpoint (Module)
+The module exposes a protected endpoint to keep the sitemap in sync with external updates:
+
+```
+POST /e-search/sitemap-sync
+Authorization: Bearer <API_KEY>
+Content-Type: application/json
+```
+
+Payload:
+```json
+{"action":"create","slug":"komp-belyy"}
+{"action":"delete","slug":"komp-belyy"}
+{"action":"update","slug":"old-slug","new_slug":"new-slug"}
+```
+
+Rules:
+- `action` is required: `create` | `update` | `delete`
+- `slug` is required for all actions
+- `new_slug` is required for `update`
+- `Authorization` must match the module API key
+
 ## Admin Tabs
 ### 1) Export Settings
 - **Feed URLs** per language (copy / download).

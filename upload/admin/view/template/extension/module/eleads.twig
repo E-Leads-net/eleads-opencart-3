@@ -87,6 +87,9 @@
         <div class="panel-heading">
           <ul class="nav nav-tabs">
             <li class="active"><a href="#tab-export" data-toggle="tab">{{ tab_export }}</a></li>
+            {% if seo_tab_available %}
+            <li><a href="#tab-seo" data-toggle="tab">{{ tab_seo }}</a></li>
+            {% endif %}
             <li><a href="#tab-api" data-toggle="tab">{{ tab_api }}</a></li>
             <li><a href="#tab-update" data-toggle="tab">{{ tab_update }}</a></li>
           </ul>
@@ -294,6 +297,35 @@
                 </div>
               </div>
             </div>
+
+            {% if seo_tab_available %}
+            <div class="tab-pane" id="tab-seo">
+              <div class="row">
+                <div class="col-sm-12">
+                  <div class="panel panel-default eleads-card eleads-section">
+                    <div class="panel-heading"><strong>{{ tab_seo }}</strong></div>
+                    <div class="panel-body">
+                      {% if not seo_url_enabled %}
+                        <div class="alert alert-warning">{{ text_seo_url_disabled }}</div>
+                      {% endif %}
+                      <div class="form-group">
+                        <label class="col-sm-2 control-label">{{ entry_seo_pages }}</label>
+                        <div class="col-sm-10">
+                          <select name="module_eleads_seo_pages_enabled" class="form-control" {% if not seo_url_enabled %}disabled{% endif %}>
+                            <option value="1" {% if module_eleads_seo_pages_enabled %}selected{% endif %}>{{ text_enabled }}</option>
+                            <option value="0" {% if not module_eleads_seo_pages_enabled %}selected{% endif %}>{{ text_disabled }}</option>
+                          </select>
+                          {% if not seo_url_enabled %}
+                            <input type="hidden" name="module_eleads_seo_pages_enabled" value="0"/>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endif %}
 
             <div class="tab-pane" id="tab-api">
               <div class="row">
