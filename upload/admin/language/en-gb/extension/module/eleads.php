@@ -38,6 +38,7 @@ $_['entry_picture_limit'] = 'Picture Limit';
 $_['entry_image_size'] = 'Image Size';
 $_['entry_short_description_source'] = 'Short Description Source';
 $_['entry_seo_pages'] = 'SEO Pages';
+$_['entry_sitemap_url'] = 'Sitemap URL';
 
 // Help
 $_['help_image_size'] = 'Use "original" or WxH, e.g. 500x500.';

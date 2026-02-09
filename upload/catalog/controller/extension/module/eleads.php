@@ -174,7 +174,7 @@ class ControllerExtensionModuleEleads extends Controller {
 		$data['content_bottom'] = $this->load->controller('common/content_bottom');
 		$data['footer'] = $this->load->controller('common/footer');
 
-		$this->response->setOutput($this->load->view('product/search', $data));
+		$this->response->setOutput($this->load->view('extension/eleads/seo', $data));
 	}
 
 	private function normalizeFeedLang($lang) {

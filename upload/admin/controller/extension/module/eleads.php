@@ -134,6 +134,7 @@ class ControllerExtensionModuleEleads extends Controller {
 		$data['entry_image_size'] = $this->language->get('entry_image_size');
 		$data['entry_short_description_source'] = $this->language->get('entry_short_description_source');
 		$data['entry_seo_pages'] = $this->language->get('entry_seo_pages');
+		$data['entry_sitemap_url'] = $this->language->get('entry_sitemap_url');
 		$data['text_seo_url_disabled'] = $this->language->get('text_seo_url_disabled');
 		$data['seo_tab_available'] = $seo_available;
 		$data['help_image_size'] = $this->language->get('help_image_size');
@@ -149,6 +150,7 @@ class ControllerExtensionModuleEleads extends Controller {
 			$data['module_eleads_seo_pages_enabled'] = 0;
 		}
 		$data['seo_url_enabled'] = (bool)$this->config->get('config_seo_url');
+		$data['sitemap_url_full'] = $this->getCatalogBaseUrl() . '/e-search/sitemap.xml';
 		$data['api_key_required'] = !$api_key_valid;
 		$data['api_key_value'] = $api_key_submitted !== null ? $api_key_submitted : $api_key;
 		$data['api_key_error'] = $api_key_error;
@@ -572,18 +574,7 @@ class ControllerExtensionModuleEleads extends Controller {
 	}
 
 	private function buildFeedUrls($languages, $access_key) {
-		$root = '';
-		if (defined('HTTPS_CATALOG') && HTTPS_CATALOG) {
-			$root = HTTPS_CATALOG;
-		} elseif (defined('HTTP_CATALOG') && HTTP_CATALOG) {
-			$root = HTTP_CATALOG;
-		} else {
-			$root = $this->config->get('config_ssl') ? $this->config->get('config_ssl') : $this->config->get('config_url');
-		}
-		if ($root === null) {
-			$root = '';
-		}
-		$root = rtrim((string)$root, '/');
+		$root = $this->getCatalogBaseUrl();
 		$seo_enabled = (bool)$this->config->get('config_seo_url');
 		$urls = array();
 		foreach ($languages as $language) {
@@ -603,6 +594,21 @@ class ControllerExtensionModuleEleads extends Controller {
 			);
 		}
 		return $urls;
+	}
+
+	private function getCatalogBaseUrl() {
+		$root = '';
+		if (defined('HTTPS_CATALOG') && HTTPS_CATALOG) {
+			$root = HTTPS_CATALOG;
+		} elseif (defined('HTTP_CATALOG') && HTTP_CATALOG) {
+			$root = HTTP_CATALOG;
+		} else {
+			$root = $this->config->get('config_ssl') ? $this->config->get('config_ssl') : $this->config->get('config_url');
+		}
+		if ($root === null) {
+			$root = '';
+		}
+		return rtrim((string)$root, '/');
 	}
 
 	private function syncWidgetLoaderTag($enabled, $api_key) {
