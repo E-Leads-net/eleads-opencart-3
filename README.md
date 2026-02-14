@@ -49,7 +49,7 @@ If an access key is configured:
 The module exposes a protected endpoint to keep the sitemap in sync with external updates:
 
 ```
-POST /e-search/sitemap-sync
+POST /e-search/api/sitemap-sync
 Authorization: Bearer <API_KEY>
 Content-Type: application/json
 ```
@@ -66,6 +66,36 @@ Rules:
 - `slug` is required for all actions
 - `new_slug` is required for `update`
 - `Authorization` must match the module API key
+
+### Languages Endpoint (Module)
+Returns enabled store languages for integrations:
+
+```
+GET /e-search/api/languages
+Authorization: Bearer <API_KEY>
+Accept: application/json
+```
+
+Success:
+```json
+{
+  "status": "ok",
+  "count": 3,
+  "items": [
+    {
+      "id": 1,
+      "label": "ua",
+      "code": "ua",
+      "href_lang": "uk",
+      "enabled": true
+    }
+  ]
+}
+```
+
+Errors:
+- `401`: `{"error":"unauthorized"}` or `{"error":"api_key_missing"}`
+- `405`: `{"error":"method_not_allowed"}`
 
 ## Admin Tabs
 ### 1) Export Settings

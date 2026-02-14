@@ -343,17 +343,49 @@ class ControllerExtensionModuleEleads extends Controller {
 		$payload_builder = new EleadsSyncPayloadBuilder();
 		$api_client = new EleadsApiClient();
 		$service = new EleadsSyncService($settings, $adapter, $payload_builder, $api_client);
-
-		$lang_code = (string)$this->config->get('config_admin_language');
-		$lang_code = $this->normalizeFeedLang($lang_code);
-
-		if ($mode === 'create') {
-			$service->syncProductCreated($product_id, $lang_code);
-		} elseif ($mode === 'delete') {
-			$service->syncProductDeleted($product_id, $lang_code);
-		} else {
-			$service->syncProductUpdated($product_id, $lang_code);
+		$languages = ($mode === 'delete') ? $this->getEnabledSyncLanguages() : $this->getProductSyncLanguages($product_id);
+		if (empty($languages)) {
+			return;
 		}
+
+		foreach ($languages as $lang_code) {
+			if ($mode === 'create') {
+				$service->syncProductCreated($product_id, $lang_code);
+			} elseif ($mode === 'delete') {
+				$service->syncProductDeleted($product_id, $lang_code);
+			} else {
+				$service->syncProductUpdated($product_id, $lang_code);
+			}
+		}
+	}
+
+	private function getProductSyncLanguages($product_id) {
+		$languages = array();
+		$query = $this->db->query(
+			"SELECT DISTINCT l.code FROM " . DB_PREFIX . "product_description pd LEFT JOIN " . DB_PREFIX . "language l ON (pd.language_id = l.language_id) WHERE pd.product_id = '" . (int)$product_id . "' AND l.status = '1'"
+		);
+		foreach ((array)$query->rows as $row) {
+			$normalized = $this->normalizeFeedLang(isset($row['code']) ? (string)$row['code'] : '');
+			if ($normalized !== '') {
+				$languages[$normalized] = $normalized;
+			}
+		}
+		if (!empty($languages)) {
+			return array_values($languages);
+		}
+		return $this->getEnabledSyncLanguages();
+	}
+
+	private function getEnabledSyncLanguages() {
+		$languages = array();
+		$query = $this->db->query("SELECT code FROM " . DB_PREFIX . "language WHERE status = '1'");
+		foreach ((array)$query->rows as $row) {
+			$normalized = $this->normalizeFeedLang(isset($row['code']) ? (string)$row['code'] : '');
+			if ($normalized !== '') {
+				$languages[$normalized] = $normalized;
+			}
+		}
+		return array_values($languages);
 	}
 
 	private function normalizeFeedLang($lang) {
@@ -504,18 +536,51 @@ class ControllerExtensionModuleEleads extends Controller {
 		if (!is_array($data) || empty($data['slugs']) || !is_array($data['slugs'])) {
 			return array();
 		}
-		return array_values(array_filter($data['slugs'], 'is_string'));
+
+		$items = array();
+		foreach ($data['slugs'] as $row) {
+			if (is_string($row)) {
+				$slug = trim($row);
+				if ($slug !== '') {
+					$items[] = array('slug' => $slug, 'lang' => '');
+				}
+				continue;
+			}
+			if (!is_array($row)) {
+				continue;
+			}
+			$slug = isset($row['slug']) ? trim((string)$row['slug']) : '';
+			$lang = isset($row['lang']) ? trim((string)$row['lang']) : '';
+			if ($slug === '') {
+				continue;
+			}
+			$items[] = array('slug' => $slug, 'lang' => $this->normalizeFeedLang($lang));
+		}
+
+		return $items;
 	}
 
 	private function buildSeoSitemapXml($base_url, $slugs) {
 		$base_url = rtrim((string)$base_url, '/');
+		$lang_map = $this->getSeoUrlLangMap();
 		$rows = array();
-		foreach ((array)$slugs as $slug) {
-			$slug = trim((string)$slug);
+		foreach ((array)$slugs as $item) {
+			$slug = '';
+			$api_lang = '';
+			if (is_array($item)) {
+				$slug = trim(isset($item['slug']) ? (string)$item['slug'] : '');
+				$api_lang = $this->normalizeFeedLang(isset($item['lang']) ? (string)$item['lang'] : '');
+			} else {
+				$slug = trim((string)$item);
+			}
 			if ($slug === '') {
 				continue;
 			}
-			$loc = $base_url . '/e-search/' . rawurlencode($slug);
+			if ($api_lang === '') {
+				$api_lang = $this->normalizeFeedLang((string)$this->config->get('config_language'));
+			}
+			$url_lang = isset($lang_map[$api_lang]) ? $lang_map[$api_lang] : $api_lang;
+			$loc = $base_url . '/' . rawurlencode($url_lang) . '/e-search/' . rawurlencode($slug);
 			$rows[] = '  <url><loc>' . htmlspecialchars($loc, ENT_QUOTES, 'UTF-8') . '</loc></url>';
 		}
 		$xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
@@ -525,6 +590,35 @@ class ControllerExtensionModuleEleads extends Controller {
 		}
 		$xml .= "</urlset>\n";
 		return $xml;
+	}
+
+	private function getSeoUrlLangMap() {
+		$this->load->model('localisation/language');
+		$map = array();
+
+		foreach ((array)$this->model_localisation_language->getLanguages() as $language) {
+			if (isset($language['status']) && !$language['status']) {
+				continue;
+			}
+			$code = strtolower(isset($language['code']) ? (string)$language['code'] : '');
+			$normalized = $this->normalizeFeedLang($code);
+			if ($normalized === '') {
+				continue;
+			}
+			$url_lang = $normalized;
+			if ($url_lang === 'uk') {
+				$url_lang = 'ua';
+			}
+			if (!isset($map[$normalized])) {
+				$map[$normalized] = $url_lang;
+			}
+		}
+
+		if (!isset($map['uk'])) {
+			$map['uk'] = 'ua';
+		}
+
+		return $map;
 	}
 
 	private function getCategoriesTreeNodes($parent_id = 0, $level = 0, &$visited = array()) {

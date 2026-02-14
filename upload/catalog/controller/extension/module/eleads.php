@@ -29,63 +29,188 @@ class ControllerExtensionModuleEleads extends Controller {
 	public function sitemapSync() {
 		if (($this->request->server['REQUEST_METHOD'] ?? '') !== 'POST') {
 			$this->response->addHeader('HTTP/1.1 405 Method Not Allowed');
-			$this->response->setOutput('Method Not Allowed');
+			$this->response->addHeader('Content-Type: application/json');
+			$this->response->setOutput(json_encode(array('error' => 'method_not_allowed')));
 			return;
 		}
 
-		$api_key = (string)$this->config->get('module_eleads_api_key');
-		$auth = $this->getBearerToken();
-		if ($api_key === '' || $auth === '' || !hash_equals($api_key, $auth)) {
+		$api_key = trim((string)$this->config->get('module_eleads_api_key'));
+		if ($api_key === '') {
 			$this->response->addHeader('HTTP/1.1 401 Unauthorized');
-			$this->response->setOutput('Unauthorized');
+			$this->response->addHeader('Content-Type: application/json');
+			$this->response->setOutput(json_encode(array('error' => 'api_key_missing')));
+			return;
+		}
+
+		$auth = $this->getBearerToken();
+		if ($auth === '' || !hash_equals($api_key, $auth)) {
+			$this->response->addHeader('HTTP/1.1 401 Unauthorized');
+			$this->response->addHeader('Content-Type: application/json');
+			$this->response->setOutput(json_encode(array('error' => 'unauthorized')));
 			return;
 		}
 
 		$payload = json_decode((string)file_get_contents('php://input'), true);
 		if (!is_array($payload)) {
-			$this->response->addHeader('HTTP/1.1 400 Bad Request');
-			$this->response->setOutput('Invalid payload');
+			$this->response->addHeader('HTTP/1.1 422 Unprocessable Entity');
+			$this->response->addHeader('Content-Type: application/json');
+			$this->response->setOutput(json_encode(array('error' => 'invalid_payload')));
 			return;
 		}
 
-		$action = isset($payload['action']) ? (string)$payload['action'] : '';
+		$action = isset($payload['action']) ? trim((string)$payload['action']) : '';
 		$slug = isset($payload['slug']) ? trim((string)$payload['slug']) : '';
 		$new_slug = isset($payload['new_slug']) ? trim((string)$payload['new_slug']) : '';
 
-		if (!in_array($action, array('create', 'update', 'delete'), true) || $slug === '' || ($action === 'update' && $new_slug === '')) {
+		if (!in_array($action, array('create', 'update', 'delete'), true)) {
 			$this->response->addHeader('HTTP/1.1 422 Unprocessable Entity');
-			$this->response->setOutput('Invalid action');
+			$this->response->addHeader('Content-Type: application/json');
+			$this->response->setOutput(json_encode(array('error' => 'invalid_action')));
+			return;
+		}
+		if ($slug === '' || ($action === 'update' && $new_slug === '')) {
+			$this->response->addHeader('HTTP/1.1 422 Unprocessable Entity');
+			$this->response->addHeader('Content-Type: application/json');
+			$this->response->setOutput(json_encode(array('error' => 'invalid_payload')));
 			return;
 		}
 
-		$slugs = $this->readSeoSitemapSlugs();
-		$slugs = array_values(array_filter(array_unique($slugs), 'strlen'));
+		$query_lang = isset($this->request->get['lang']) ? (string)$this->request->get['lang'] : '';
+		$source_lang_input = $query_lang !== '' ? $query_lang : (isset($payload['lang']) ? (string)$payload['lang'] : (isset($payload['language']) ? (string)$payload['language'] : ''));
+		$target_lang_input = isset($payload['new_lang']) ? (string)$payload['new_lang'] : (isset($payload['new_language']) ? (string)$payload['new_language'] : '');
 
-		if ($action === 'create') {
-			if (!in_array($slug, $slugs, true)) {
-				$slugs[] = $slug;
-			}
-		} elseif ($action === 'delete') {
-			$slugs = array_values(array_filter($slugs, function ($value) use ($slug) {
-				return $value !== $slug;
-			}));
-		} else {
-			$slugs = array_values(array_filter($slugs, function ($value) use ($slug) {
-				return $value !== $slug;
-			}));
-			if (!in_array($new_slug, $slugs, true)) {
-				$slugs[] = $new_slug;
-			}
+		$source_lang_explicit = trim($source_lang_input) !== '';
+		$target_lang_explicit = trim($target_lang_input) !== '';
+
+		$source_lang = $this->resolveSeoSitemapLanguage($source_lang_input);
+		if ($source_lang === '') {
+			$source_lang = $this->resolveSeoSitemapLanguage((string)$this->config->get('config_language'));
+		}
+		$target_lang = $this->resolveSeoSitemapLanguage($target_lang_input);
+		if ($target_lang === '') {
+			$target_lang = $source_lang;
 		}
 
-		$this->writeSeoSitemapSlugs($slugs);
+		$entries = $this->readSeoSitemapEntries();
+		$url = $this->buildSeoPageUrl($source_lang, $slug);
+
+		if ($action === 'create') {
+			$exists = false;
+			foreach ($entries as $entry) {
+				if ($entry['slug'] === $slug && $entry['lang'] === $source_lang) {
+					$exists = true;
+					break;
+				}
+			}
+			if (!$exists) {
+				$entries[] = array('lang' => $source_lang, 'slug' => $slug);
+			}
+		} elseif ($action === 'delete') {
+			$entries = array_values(array_filter($entries, function ($entry) use ($slug, $source_lang, $source_lang_explicit) {
+				if ($entry['slug'] !== $slug) {
+					return true;
+				}
+				if (!$source_lang_explicit) {
+					return false;
+				}
+				return $entry['lang'] !== $source_lang;
+			}));
+		} else {
+			$matched = array();
+			$kept = array();
+			foreach ($entries as $entry) {
+				$is_match = $entry['slug'] === $slug && (!$source_lang_explicit || $entry['lang'] === $source_lang);
+				if ($is_match) {
+					$matched[] = $entry;
+				} else {
+					$kept[] = $entry;
+				}
+			}
+			$entries = $kept;
+
+			if (empty($matched)) {
+				$matched[] = array('lang' => $source_lang, 'slug' => $slug);
+			}
+
+			foreach ($matched as $entry) {
+				$new_lang = $entry['lang'];
+				if ($target_lang_explicit) {
+					$new_lang = $target_lang;
+				} elseif ($source_lang_explicit) {
+					$new_lang = $source_lang;
+				}
+				$entries[] = array('lang' => $new_lang, 'slug' => $new_slug);
+			}
+
+			$url = $this->buildSeoPageUrl($target_lang_explicit ? $target_lang : $source_lang, $new_slug);
+		}
+
+		if (!$this->writeSeoSitemapEntries($entries)) {
+			$this->response->addHeader('HTTP/1.1 500 Internal Server Error');
+			$this->response->addHeader('Content-Type: application/json');
+			$this->response->setOutput(json_encode(array('error' => 'sitemap_update_failed')));
+			return;
+		}
 
 		$this->response->addHeader('Content-Type: application/json');
-		$this->response->setOutput(json_encode(array('ok' => true)));
+		$this->response->setOutput(json_encode(array(
+			'status' => 'ok',
+			'url' => $url,
+		)));
+	}
+
+	public function languages() {
+		if (($this->request->server['REQUEST_METHOD'] ?? '') !== 'GET') {
+			$this->response->addHeader('HTTP/1.1 405 Method Not Allowed');
+			$this->response->addHeader('Content-Type: application/json');
+			$this->response->setOutput(json_encode(array('error' => 'method_not_allowed')));
+			return;
+		}
+
+		$api_key = (string)$this->config->get('module_eleads_api_key');
+		if ($api_key === '') {
+			$this->response->addHeader('HTTP/1.1 401 Unauthorized');
+			$this->response->addHeader('Content-Type: application/json');
+			$this->response->setOutput(json_encode(array('error' => 'api_key_missing')));
+			return;
+		}
+
+		$auth = $this->getBearerToken();
+		if ($auth === '' || !hash_equals($api_key, $auth)) {
+			$this->response->addHeader('HTTP/1.1 401 Unauthorized');
+			$this->response->addHeader('Content-Type: application/json');
+			$this->response->setOutput(json_encode(array('error' => 'unauthorized')));
+			return;
+		}
+
+		$this->load->model('localisation/language');
+		$items = array();
+		foreach ((array)$this->model_localisation_language->getLanguages() as $language) {
+			if (isset($language['status']) && !$language['status']) {
+				continue;
+			}
+			$code = isset($language['code']) ? (string)$language['code'] : '';
+			$items[] = array(
+				'id' => isset($language['language_id']) ? (int)$language['language_id'] : 0,
+				'label' => $code,
+				'code' => $code,
+				'href_lang' => $this->normalizeFeedLang($code),
+				'enabled' => true,
+			);
+		}
+
+		$this->response->addHeader('Content-Type: application/json');
+		$this->response->setOutput(json_encode(array(
+			'status' => 'ok',
+			'count' => count($items),
+			'items' => $items,
+		)));
 	}
 
 	public function seoPage() {
 		$slug = isset($this->request->get['slug']) ? trim((string)$this->request->get['slug']) : '';
+		$lang = isset($this->request->get['lang']) ? trim((string)$this->request->get['lang']) : '';
+		$requested_store_code = isset($this->request->get['language']) ? (string)$this->request->get['language'] : (isset($this->session->data['language']) ? (string)$this->session->data['language'] : (string)$this->config->get('config_language'));
 		if ($slug === '') {
 			$this->response->addHeader('HTTP/1.1 404 Not Found');
 			return;
@@ -97,10 +222,48 @@ class ControllerExtensionModuleEleads extends Controller {
 			return;
 		}
 
-		$page = $this->fetchSeoPage($slug);
+		if ($lang === '') {
+			$lang = $requested_store_code;
+		}
+		$lang = $this->normalizeFeedLang($lang);
+		if ($lang === '') {
+			$lang = $this->normalizeFeedLang((string)$this->config->get('config_language'));
+		}
+
+		$page = $this->fetchSeoPage($slug, $lang);
 		if (!$page) {
 			$this->response->addHeader('HTTP/1.1 404 Not Found');
 			return;
+		}
+
+		$current_short = $this->resolveSeoSitemapLanguage($lang);
+		$selected_short = $this->resolveSeoSitemapLanguage($requested_store_code);
+		if ($selected_short !== '' && $current_short !== '' && $selected_short !== $current_short) {
+			$alternate_url = $this->findAlternateUrl($page['alternate'], $selected_short);
+			if ($alternate_url !== '') {
+				$this->response->redirect($alternate_url);
+				return;
+			}
+		}
+
+		$store_language_code = $this->resolveStoreLanguageCode($lang);
+		$this->applyStoreLanguage($store_language_code);
+
+		$self_lang = $this->resolveSeoSitemapLanguage($lang);
+		$self_url = $this->buildSeoPageUrl($self_lang, $slug);
+		$this->document->addLink($self_url, 'canonical');
+		$alternate_links = array($self_url => true);
+		foreach ((array)$page['alternate'] as $alt) {
+			$alt_url = isset($alt['url']) ? trim((string)$alt['url']) : '';
+			$alt_lang = isset($alt['lang']) ? (string)$alt['lang'] : '';
+			if ($alt_url === '' && $alt_lang !== '') {
+				$alt_url = $this->buildSeoPageUrl($this->resolveSeoSitemapLanguage($alt_lang), $slug);
+			}
+			if ($alt_url === '' || isset($alternate_links[$alt_url])) {
+				continue;
+			}
+			$this->document->addLink($alt_url, 'alternate');
+			$alternate_links[$alt_url] = true;
 		}
 
 		$this->load->language('product/search');
@@ -119,11 +282,11 @@ class ControllerExtensionModuleEleads extends Controller {
 
 		$data = array();
 		$data['breadcrumbs'] = array(
-			array('text' => $this->language->get('text_home'), 'href' => $this->url->link('common/home'))
+			array('text' => $this->language->get('text_home'), 'href' => $this->url->link('common/home', 'language=' . $store_language_code))
 		);
 		$data['breadcrumbs'][] = array(
 			'text' => $title,
-			'href' => $this->url->link('extension/module/eleads/seoPage', 'slug=' . urlencode($slug))
+			'href' => $this->url->link('extension/module/eleads/seoPage', 'language=' . $store_language_code . '&lang=' . urlencode($current_short) . '&slug=' . urlencode($slug))
 		);
 
 		$data['heading_title'] = $page['h1'] !== '' ? $page['h1'] : $page['query'];
@@ -138,7 +301,7 @@ class ControllerExtensionModuleEleads extends Controller {
 		$data['text_sort'] = $this->language->get('text_sort');
 		$data['text_limit'] = $this->language->get('text_limit');
 		$data['text_compare'] = sprintf($this->language->get('text_compare'), (isset($this->session->data['compare']) ? count($this->session->data['compare']) : 0));
-		$data['compare'] = $this->url->link('product/compare');
+		$data['compare'] = $this->url->link('product/compare', 'language=' . $store_language_code);
 		$data['button_cart'] = $this->language->get('button_cart');
 		$data['button_wishlist'] = $this->language->get('button_wishlist');
 		$data['button_compare'] = $this->language->get('button_compare');
@@ -160,7 +323,7 @@ class ControllerExtensionModuleEleads extends Controller {
 		$data['limits'] = array();
 
 		$product_ids = $this->normalizeProductIds($page['product_ids']);
-		$data['products'] = $this->buildProducts($product_ids);
+		$data['products'] = $this->buildProducts($product_ids, $store_language_code);
 		$data['pagination'] = '';
 		$data['results'] = '';
 
@@ -228,10 +391,14 @@ class ControllerExtensionModuleEleads extends Controller {
 		return $ssl !== '' ? rtrim($ssl, '/') : rtrim((string)$this->config->get('config_url'), '/');
 	}
 
-	private function fetchSeoPage($slug) {
+	private function fetchSeoPage($slug, $lang) {
 		$api_key = trim((string)$this->config->get('module_eleads_api_key'));
 		if ($api_key === '') {
 			return null;
+		}
+		$lang = $this->normalizeFeedLang((string)$lang);
+		if ($lang === '') {
+			$lang = $this->normalizeFeedLang((string)$this->config->get('config_language'));
 		}
 		require_once DIR_SYSTEM . 'library/eleads/api_routes.php';
 		$ch = curl_init();
@@ -242,7 +409,8 @@ class ControllerExtensionModuleEleads extends Controller {
 			'Authorization: Bearer ' . $api_key,
 			'Accept: application/json',
 		);
-		curl_setopt($ch, CURLOPT_URL, EleadsApiRoutes::SEO_PAGE . rawurlencode($slug));
+		$url = EleadsApiRoutes::SEO_PAGE . rawurlencode($slug) . '?lang=' . rawurlencode($lang);
+		curl_setopt($ch, CURLOPT_URL, $url);
 		curl_setopt($ch, CURLOPT_HTTPGET, true);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -263,9 +431,24 @@ class ControllerExtensionModuleEleads extends Controller {
 			return null;
 		}
 		$page = $data['page'];
+		$alternate = array();
+		if (isset($page['alternate']) && is_array($page['alternate'])) {
+			foreach ($page['alternate'] as $item) {
+				if (!is_array($item)) {
+					continue;
+				}
+				$alternate[] = array(
+					'url' => isset($item['url']) ? trim((string)$item['url']) : '',
+					'lang' => isset($item['lang']) ? trim((string)$item['lang']) : '',
+				);
+			}
+		}
 		return array(
 			'query' => isset($page['query']) ? (string)$page['query'] : '',
 			'seo_slug' => isset($page['seo_slug']) ? (string)$page['seo_slug'] : '',
+			'url' => isset($page['url']) ? (string)$page['url'] : '',
+			'language' => isset($page['language']) ? (string)$page['language'] : '',
+			'alternate' => $alternate,
 			'h1' => isset($page['h1']) ? (string)$page['h1'] : '',
 			'meta_title' => isset($page['meta_title']) ? (string)$page['meta_title'] : '',
 			'meta_description' => isset($page['meta_description']) ? (string)$page['meta_description'] : '',
@@ -287,7 +470,7 @@ class ControllerExtensionModuleEleads extends Controller {
 		return array_values(array_unique($ids));
 	}
 
-	private function buildProducts($product_ids) {
+	private function buildProducts($product_ids, $store_language_code) {
 		$products = array();
 		$size = $this->getProductImageSize();
 		$description_limit = $this->getProductDescriptionLength();
@@ -338,7 +521,7 @@ class ControllerExtensionModuleEleads extends Controller {
 				'special'     => $special,
 				'tax'         => $tax,
 				'rating'      => $rating,
-				'href'        => $this->url->link('product/product', 'product_id=' . $result['product_id'])
+				'href'        => $this->url->link('product/product', 'language=' . $store_language_code . '&product_id=' . $result['product_id'])
 			);
 		}
 		return $products;
@@ -370,6 +553,28 @@ class ControllerExtensionModuleEleads extends Controller {
 	}
 
 	private function readSeoSitemapSlugs() {
+		$entries = $this->readSeoSitemapEntries();
+		$slugs = array();
+		foreach ($entries as $entry) {
+			$slugs[] = $entry['slug'];
+		}
+		return array_values(array_unique($slugs));
+	}
+
+	private function writeSeoSitemapSlugs($slugs) {
+		$lang = $this->resolveSeoSitemapLanguage((string)$this->config->get('config_language'));
+		$entries = array();
+		foreach ((array)$slugs as $slug) {
+			$slug = trim((string)$slug);
+			if ($slug === '') {
+				continue;
+			}
+			$entries[] = array('lang' => $lang, 'slug' => $slug);
+		}
+		return $this->writeSeoSitemapEntries($entries);
+	}
+
+	private function readSeoSitemapEntries() {
 		$path = $this->getSeoSitemapPath();
 		if (!is_file($path)) {
 			return array();
@@ -379,22 +584,52 @@ class ControllerExtensionModuleEleads extends Controller {
 			return array();
 		}
 		$matches = array();
-		preg_match_all('#<loc>[^<]*/e-search/([^<]+)</loc>#i', $content, $matches);
+		preg_match_all('#<loc>([^<]+)</loc>#i', $content, $matches);
 		if (empty($matches[1])) {
 			return array();
 		}
-		$slugs = array();
+		$entries = array();
 		foreach ($matches[1] as $value) {
-			$slug = urldecode(htmlspecialchars_decode($value, ENT_QUOTES));
-			$slug = trim($slug);
-			if ($slug !== '') {
-				$slugs[] = $slug;
+			$loc = html_entity_decode((string)$value, ENT_QUOTES, 'UTF-8');
+			$path = parse_url($loc, PHP_URL_PATH);
+			if (!is_string($path)) {
+				continue;
 			}
+			$path = trim($path, '/');
+			$lang = '';
+			$slug = '';
+			if (preg_match('#^([^/]+)/e-search/(.+)$#', $path, $m)) {
+				$lang = $this->resolveSeoSitemapLanguage($m[1]);
+				$slug = $m[2];
+			} elseif (strpos($path, 'e-search/') === 0) {
+				$tail = substr($path, strlen('e-search/'));
+				if ($tail === false || $tail === '') {
+					continue;
+				}
+				$parts = explode('/', $tail, 2);
+				if (count($parts) === 2) {
+					$lang = $this->resolveSeoSitemapLanguage($parts[0]);
+					$slug = $parts[1];
+				} else {
+					$slug = $parts[0];
+				}
+			} else {
+				continue;
+			}
+			$slug = trim((string)urldecode($slug));
+			if ($slug === '') {
+				continue;
+			}
+			if ($lang === '') {
+				$lang = $this->resolveSeoSitemapLanguage((string)$this->config->get('config_language'));
+			}
+			$key = $lang . '|' . $slug;
+			$entries[$key] = array('lang' => $lang, 'slug' => $slug);
 		}
-		return $slugs;
+		return array_values($entries);
 	}
 
-	private function writeSeoSitemapSlugs($slugs) {
+	private function writeSeoSitemapEntries($entries) {
 		$path = $this->getSeoSitemapPath();
 		$dir = dirname($path);
 		if (!is_dir($dir)) {
@@ -402,12 +637,22 @@ class ControllerExtensionModuleEleads extends Controller {
 		}
 		$base_url = $this->getSeoBaseUrl();
 		$rows = array();
-		foreach ((array)$slugs as $slug) {
-			$slug = trim((string)$slug);
+		$unique = array();
+		foreach ((array)$entries as $entry) {
+			$lang = $this->resolveSeoSitemapLanguage(isset($entry['lang']) ? (string)$entry['lang'] : '');
+			$slug = trim(isset($entry['slug']) ? (string)$entry['slug'] : '');
 			if ($slug === '') {
 				continue;
 			}
-			$loc = $base_url . '/e-search/' . rawurlencode($slug);
+			if ($lang === '') {
+				$lang = $this->resolveSeoSitemapLanguage((string)$this->config->get('config_language'));
+			}
+			$key = $lang . '|' . $slug;
+			if (isset($unique[$key])) {
+				continue;
+			}
+			$unique[$key] = true;
+			$loc = $base_url . '/' . rawurlencode($lang) . '/e-search/' . rawurlencode($slug);
 			$rows[] = '  <url><loc>' . htmlspecialchars($loc, ENT_QUOTES, 'UTF-8') . '</loc></url>';
 		}
 		$xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
@@ -416,6 +661,90 @@ class ControllerExtensionModuleEleads extends Controller {
 			$xml .= implode("\n", $rows) . "\n";
 		}
 		$xml .= "</urlset>\n";
-		@file_put_contents($path, $xml);
+		return @file_put_contents($path, $xml) !== false;
+	}
+
+	private function resolveSeoSitemapLanguage($lang) {
+		$lang = strtolower(trim((string)$lang));
+		$normalized = $this->normalizeFeedLang($lang);
+		if ($normalized === 'en') {
+			return 'en';
+		}
+		if ($normalized === 'ru') {
+			return 'ru';
+		}
+		if ($normalized === 'uk') {
+			return 'ua';
+		}
+
+		if (preg_match('/^[a-z]{2}/', $lang, $m)) {
+			return $m[1];
+		}
+
+		return 'en';
+	}
+
+	private function resolveStoreLanguageCode($lang) {
+		$this->load->model('localisation/language');
+		$languages = (array)$this->model_localisation_language->getLanguages();
+		$lang = strtolower(trim((string)$lang));
+		$normalized = $this->normalizeFeedLang($lang);
+
+		foreach ($languages as $language) {
+			if (isset($language['status']) && !$language['status']) {
+				continue;
+			}
+			$code = strtolower(isset($language['code']) ? (string)$language['code'] : '');
+			if ($code !== '' && $code === $lang) {
+				return $code;
+			}
+			if ($code !== '' && $this->normalizeFeedLang($code) === $normalized) {
+				return $code;
+			}
+		}
+
+		return (string)$this->config->get('config_language');
+	}
+
+	private function applyStoreLanguage($code) {
+		$code = (string)$code;
+		if ($code === '') {
+			return;
+		}
+
+		$this->load->model('localisation/language');
+		$languages = (array)$this->model_localisation_language->getLanguages();
+		if (!isset($languages[$code])) {
+			return;
+		}
+
+		$this->session->data['language'] = $code;
+		$this->config->set('config_language', $code);
+		$this->config->set('config_language_id', (int)$languages[$code]['language_id']);
+
+		$language = new Language($code);
+		$language->load($code);
+		$this->registry->set('language', $language);
+		$this->language = $language;
+	}
+
+	private function findAlternateUrl($alternates, $target_short) {
+		foreach ((array)$alternates as $alternate) {
+			if (!is_array($alternate)) {
+				continue;
+			}
+			$alt_short = $this->resolveSeoSitemapLanguage(isset($alternate['lang']) ? (string)$alternate['lang'] : '');
+			$url = isset($alternate['url']) ? trim((string)$alternate['url']) : '';
+			if ($url !== '' && $alt_short === $target_short) {
+				return $url;
+			}
+		}
+		return '';
+	}
+
+	private function buildSeoPageUrl($lang, $slug) {
+		$base = $this->getSeoBaseUrl();
+		$lang = $this->resolveSeoSitemapLanguage($lang);
+		return $base . '/' . rawurlencode((string)$lang) . '/e-search/' . rawurlencode((string)$slug);
 	}
 }

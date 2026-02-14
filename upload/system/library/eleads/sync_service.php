@@ -22,6 +22,8 @@ class EleadsSyncService {
 			return;
 		}
 
+		$this->applyLanguageContext($lang_code);
+
 		$payload = $this->payload_builder->build($this->adapter, (int)$product_id, $lang_code);
 		if ($payload === null) {
 			return;
@@ -44,6 +46,8 @@ class EleadsSyncService {
 		if ($api_key === '') {
 			return;
 		}
+
+		$this->applyLanguageContext($lang_code);
 
 		$payload = $this->payload_builder->build($this->adapter, (int)$product_id, $lang_code);
 		if ($payload === null) {
@@ -78,5 +82,15 @@ class EleadsSyncService {
 
 	private function isSyncEnabled() {
 		return !empty($this->settings['sync_enabled']);
+	}
+
+	private function applyLanguageContext($lang_code) {
+		$resolved = (string)$lang_code;
+		if (method_exists($this->adapter, 'resolveLanguageCode')) {
+			$resolved = (string)$this->adapter->resolveLanguageCode((string)$lang_code);
+		}
+		if ($resolved !== '' && method_exists($this->adapter, 'setLanguageByCode')) {
+			$this->adapter->setLanguageByCode($resolved);
+		}
 	}
 }

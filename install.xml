@@ -2,7 +2,7 @@
 <modification>
   <name>E-Leads OpenCart 3</name>
   <code>eleads_oc3</code>
-  <version>0.1.21</version>
+  <version>0.1.22</version>
   <author>E-Leads</author>
 
   <file path="catalog/controller/startup/seo_url.php">
@@ -17,15 +17,29 @@
 				$this->request->get['lang'] = $m[1];
 				return;
 			}
-			if ($route === 'e-search/sitemap-sync') {
+			if ($route === 'e-search/sitemap-sync' || $route === 'e-search/api/sitemap-sync') {
 				$this->request->get['route'] = 'extension/module/eleads/sitemapSync';
 				return;
 			}
-			if (strpos($route, 'e-search/') === 0) {
-				$slug = substr($route, strlen('e-search/'));
-				if ($slug !== '') {
+			if ($route === 'e-search/api/languages') {
+				$this->request->get['route'] = 'extension/module/eleads/languages';
+				return;
+			}
+			if (preg_match('#^([a-zA-Z0-9_-]+)/e-search/(.+)$#', $route, $m)) {
+				$lang = $m[1];
+				$tail = $m[2];
+				if ($tail !== '' && strpos($tail, 'api/') !== 0 && $tail !== 'sitemap.xml') {
 					$this->request->get['route'] = 'extension/module/eleads/seoPage';
-					$this->request->get['slug'] = $slug;
+					$this->request->get['slug'] = $tail;
+					$this->request->get['lang'] = $lang;
+					return;
+				}
+			}
+			if (strpos($route, 'e-search/') === 0) {
+				$tail = substr($route, strlen('e-search/'));
+				if ($tail !== '' && strpos($tail, 'api/') !== 0 && $tail !== 'sitemap.xml') {
+					$this->request->get['route'] = 'extension/module/eleads/seoPage';
+					$this->request->get['slug'] = $tail;
 					return;
 				}
 			}
