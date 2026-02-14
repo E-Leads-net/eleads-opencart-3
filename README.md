@@ -39,11 +39,12 @@ If an access key is configured:
 ### Sitemap
 - URL: `/e-search/sitemap.xml`
 - Generated when **SEO Pages** is enabled.
-- Contains links in the form: `https://your-site.com/e-search/{slug}`
+- Contains links in the form: `https://your-site.com/{lang}/e-search/{slug}`
 
 ### SEO Page Route
-- URL: `/e-search/{slug}`
-- The module requests page data from the E-Leads API and renders it using the standard product search results template (with filters).
+- URL: `/e-search/{slug}` and `/{lang}/e-search/{slug}`
+- The module requests page data from the E-Leads API and renders it using the product search layout.
+- Canonical and alternate links are generated from API `alternate` data, and language switch redirects to mapped alternate URL when available.
 
 ### Sitemap Sync Endpoint (Module)
 The module exposes a protected endpoint to keep the sitemap in sync with external updates:
@@ -54,21 +55,41 @@ Authorization: Bearer <API_KEY>
 Content-Type: application/json
 ```
 
-Payload:
+Optional query parameter:
+- `?lang=<language_label>`
+
+Payload examples:
 ```json
 {"action":"create","slug":"komp-belyy"}
 {"action":"delete","slug":"komp-belyy"}
 {"action":"update","slug":"old-slug","new_slug":"new-slug"}
+{"action":"create","slug":"komp-belyy","lang":"uk"}
+{"action":"delete","slug":"komp-belyy","language":"ru"}
+{"action":"update","slug":"old-slug","new_slug":"new-slug","lang":"uk","new_lang":"ru"}
 ```
 
 Rules:
 - `action` is required: `create` | `update` | `delete`
 - `slug` is required for all actions
 - `new_slug` is required for `update`
+- source language can be passed as `lang` or `language`
+- target language for `update` can be passed as `new_lang` or `new_language`
+- if `?lang=` is provided, it has priority over payload language
 - `Authorization` must match the module API key
 
+Success response:
+```json
+{"status":"ok","url":"https://example.com/ua/e-search/komp-belyy"}
+```
+
+Error responses:
+- `401`: `{"error":"unauthorized"}` or `{"error":"api_key_missing"}`
+- `405`: `{"error":"method_not_allowed"}`
+- `422`: `{"error":"invalid_payload"}` or `{"error":"invalid_action"}`
+- `500`: `{"error":"sitemap_update_failed"}`
+
 ### Languages Endpoint (Module)
-Returns enabled store languages for integrations:
+Returns enabled/available store languages for integrations:
 
 ```
 GET /e-search/api/languages
@@ -84,9 +105,9 @@ Success:
   "items": [
     {
       "id": 1,
-      "label": "ua",
-      "code": "ua",
-      "href_lang": "uk",
+      "label": "en-gb",
+      "code": "en-gb",
+      "href_lang": "en",
       "enabled": true
     }
   ]
@@ -96,6 +117,11 @@ Success:
 Errors:
 - `401`: `{"error":"unauthorized"}` or `{"error":"api_key_missing"}`
 - `405`: `{"error":"method_not_allowed"}`
+
+## Product Sync Behavior
+- Create/update/delete events send one API request per language available for the product.
+- For delete events, requests are sent for all enabled store languages.
+- Each request builds payload in the target language context.
 
 ## Admin Tabs
 ### 1) Export Settings
@@ -172,14 +198,19 @@ If the tag request fails, nothing is inserted.
 upload/
 ├─ admin/controller/extension/module/eleads.php
 ├─ admin/language/en-gb/extension/module/eleads.php
+├─ admin/language/ru-ru/extension/module/eleads.php
 ├─ admin/view/template/extension/module/eleads.twig
 ├─ catalog/controller/extension/module/eleads.php
 └─ system/library/eleads/
    ├─ api_routes.php
    ├─ feed_engine.php
    ├─ offer_builder.php
+   ├─ seo_sitemap_manager.php
+   ├─ sync_manager.php
    ├─ sync_service.php
    ├─ update_helper.php
+   ├─ update_manager.php
+   ├─ widget_tag_manager.php
    └─ ...
 install.xml
 ```
