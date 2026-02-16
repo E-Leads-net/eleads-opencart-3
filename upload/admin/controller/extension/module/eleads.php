@@ -68,6 +68,7 @@ class ControllerExtensionModuleEleads extends Controller {
 				$settings_current = $this->model_setting_setting->getSetting('module_eleads');
 				$seo_prev = !empty($settings_current['module_eleads_seo_pages_enabled']);
 				$settings_new = array_merge($settings_current, $this->request->post);
+				$settings_new['module_eleads_filter_templates'] = $this->normalizeFilterTemplates(isset($settings_new['module_eleads_filter_templates']) ? $settings_new['module_eleads_filter_templates'] : array());
 				if (empty($settings_new['module_eleads_api_key'])) {
 					$settings_new['module_eleads_api_key'] = $api_key;
 				}
@@ -134,10 +135,22 @@ class ControllerExtensionModuleEleads extends Controller {
 		$data['entry_filter_pages_enabled'] = $this->language->get('entry_filter_pages_enabled');
 		$data['entry_filter_max_index_depth'] = $this->language->get('entry_filter_max_index_depth');
 		$data['entry_filter_min_products_noindex'] = $this->language->get('entry_filter_min_products_noindex');
-		$data['entry_filter_min_products_recommended'] = $this->language->get('entry_filter_min_products_recommended');
-		$data['entry_filter_whitelist_attributes'] = $this->language->get('entry_filter_whitelist_attributes');
-		$data['help_filter_depth_rules'] = $this->language->get('help_filter_depth_rules');
-		$data['help_filter_product_limits'] = $this->language->get('help_filter_product_limits');
+			$data['entry_filter_min_products_recommended'] = $this->language->get('entry_filter_min_products_recommended');
+			$data['entry_filter_whitelist_attributes'] = $this->language->get('entry_filter_whitelist_attributes');
+			$data['entry_filter_templates'] = $this->language->get('entry_filter_templates');
+			$data['entry_filter_template_category'] = $this->language->get('entry_filter_template_category');
+			$data['entry_filter_template_h1'] = $this->language->get('entry_filter_template_h1');
+			$data['entry_filter_template_meta_title'] = $this->language->get('entry_filter_template_meta_title');
+			$data['entry_filter_template_meta_description'] = $this->language->get('entry_filter_template_meta_description');
+			$data['entry_filter_template_meta_keywords'] = $this->language->get('entry_filter_template_meta_keywords');
+			$data['entry_filter_template_short_description'] = $this->language->get('entry_filter_template_short_description');
+			$data['entry_filter_template_description'] = $this->language->get('entry_filter_template_description');
+			$data['button_add_template'] = $this->language->get('button_add_template');
+			$data['button_remove_template'] = $this->language->get('button_remove_template');
+			$data['text_all_categories'] = $this->language->get('text_all_categories');
+			$data['help_filter_depth_rules'] = $this->language->get('help_filter_depth_rules');
+			$data['help_filter_product_limits'] = $this->language->get('help_filter_product_limits');
+			$data['help_filter_template_vars'] = $this->language->get('help_filter_template_vars');
 		$data['entry_grouped'] = $this->language->get('entry_grouped');
 		$data['entry_sync_enabled'] = $this->language->get('entry_sync_enabled');
 		$data['entry_shop_name'] = $this->language->get('entry_shop_name');
@@ -159,10 +172,11 @@ class ControllerExtensionModuleEleads extends Controller {
 		$data['entry_api_key_hint'] = $this->language->get('entry_api_key_hint');
 
 		$settings = $this->model_setting_setting->getSetting('module_eleads');
-		$data = array_merge($data, $this->prepareSettingsData($settings));
-		if (!$seo_available) {
-			$data['module_eleads_seo_pages_enabled'] = 0;
-		}
+			$data = array_merge($data, $this->prepareSettingsData($settings));
+			$data['module_eleads_filter_templates'] = $this->normalizeFilterTemplates(isset($data['module_eleads_filter_templates']) ? $data['module_eleads_filter_templates'] : array());
+			if (!$seo_available) {
+				$data['module_eleads_seo_pages_enabled'] = 0;
+			}
 		$data['seo_url_enabled'] = (bool)$this->config->get('config_seo_url');
 		$data['sitemap_url_full'] = $this->getCatalogBaseUrl() . '/e-search/sitemap.xml';
 		$data['api_key_required'] = !$api_key_valid;
@@ -171,10 +185,11 @@ class ControllerExtensionModuleEleads extends Controller {
 
 		if ($api_key_valid) {
 			$data['languages'] = $this->model_localisation_language->getLanguages();
-			$tree = $this->getCategoriesTreeNodes();
-			$selected = array_flip(array_map('intval', (array)$data['module_eleads_categories']));
-			$data['categories_tree_html'] = $this->renderCategoriesTreeHtml($tree, $selected);
-			$data['attributes'] = $this->model_catalog_attribute->getAttributes();
+				$tree = $this->getCategoriesTreeNodes();
+				$selected = array_flip(array_map('intval', (array)$data['module_eleads_categories']));
+				$data['categories_tree_html'] = $this->renderCategoriesTreeHtml($tree, $selected);
+				$data['filter_template_categories'] = $this->buildFilterTemplateCategoryOptions($tree);
+				$data['attributes'] = $this->model_catalog_attribute->getAttributes();
 			$options = $this->model_catalog_option->getOptions();
 			foreach ($options as &$option) {
 				$option['option_value'] = $this->model_catalog_option->getOptionValues($option['option_id']);
@@ -191,12 +206,13 @@ class ControllerExtensionModuleEleads extends Controller {
 		} else {
 			$data['languages'] = array();
 			$data['categories_tree_html'] = '';
-			$data['attributes'] = array();
-			$data['options'] = array();
-			$data['feed_urls'] = array();
-			$data['update_info'] = array();
-			$data['update_url'] = '';
-		}
+				$data['attributes'] = array();
+				$data['options'] = array();
+				$data['feed_urls'] = array();
+				$data['update_info'] = array();
+				$data['update_url'] = '';
+				$data['filter_template_categories'] = array();
+			}
 
 		$data['header'] = $this->load->controller('common/header');
 		$data['column_left'] = $this->load->controller('common/column_left');
@@ -367,8 +383,9 @@ class ControllerExtensionModuleEleads extends Controller {
 			'module_eleads_filter_max_index_depth' => 2,
 			'module_eleads_filter_min_products_noindex' => 5,
 			'module_eleads_filter_min_products_recommended' => 10,
-			'module_eleads_filter_whitelist_attributes' => array(),
-			'module_eleads_grouped' => 1,
+				'module_eleads_filter_whitelist_attributes' => array(),
+				'module_eleads_filter_templates' => array(),
+				'module_eleads_grouped' => 1,
 			'module_eleads_sync_enabled' => 0,
 			'module_eleads_shop_name' => (string)$this->config->get('config_name'),
 			'module_eleads_email' => (string)$this->config->get('config_email'),
@@ -402,8 +419,83 @@ class ControllerExtensionModuleEleads extends Controller {
 				$data[$key] = $value;
 			}
 		}
-		return $data;
-	}
+			return $data;
+		}
+
+		private function normalizeFilterTemplates($rows) {
+			$result = array();
+			foreach ((array)$rows as $row) {
+				if (!is_array($row)) {
+					continue;
+				}
+				$normalized = array(
+					'category_id' => isset($row['category_id']) ? (int)$row['category_id'] : 0,
+					'translations' => array(),
+				);
+				if (isset($row['translations']) && is_array($row['translations'])) {
+					foreach ($row['translations'] as $lang_code => $lang_data) {
+						$lang_code = trim((string)$lang_code);
+						if ($lang_code === '' || !is_array($lang_data)) {
+							continue;
+						}
+						$fields = $this->normalizeFilterTemplateFields($lang_data);
+						if (!$this->isFilterTemplateFieldsEmpty($fields)) {
+							$normalized['translations'][$lang_code] = $fields;
+						}
+					}
+				}
+				$legacy = $this->normalizeFilterTemplateFields($row);
+				if (!$this->isFilterTemplateFieldsEmpty($legacy)) {
+					$default_lang = (string)$this->config->get('config_language');
+					if ($default_lang === '') {
+						$default_lang = 'default';
+					}
+					if (!isset($normalized['translations'][$default_lang])) {
+						$normalized['translations'][$default_lang] = $legacy;
+					}
+				}
+				if (empty($normalized['translations'])) {
+					continue;
+				}
+				$result[] = $normalized;
+			}
+			return array_values($result);
+		}
+
+		private function normalizeFilterTemplateFields($row) {
+			return array(
+				'h1' => isset($row['h1']) ? trim((string)$row['h1']) : '',
+				'meta_title' => isset($row['meta_title']) ? trim((string)$row['meta_title']) : '',
+				'meta_description' => isset($row['meta_description']) ? trim((string)$row['meta_description']) : '',
+				'meta_keywords' => isset($row['meta_keywords']) ? trim((string)$row['meta_keywords']) : '',
+				'short_description' => isset($row['short_description']) ? trim((string)$row['short_description']) : '',
+				'description' => isset($row['description']) ? trim((string)$row['description']) : '',
+			);
+		}
+
+		private function isFilterTemplateFieldsEmpty($fields) {
+			return
+				$fields['h1'] === '' &&
+				$fields['meta_title'] === '' &&
+				$fields['meta_description'] === '' &&
+				$fields['meta_keywords'] === '' &&
+				$fields['short_description'] === '' &&
+				$fields['description'] === '';
+		}
+
+		private function buildFilterTemplateCategoryOptions($nodes, $prefix = '') {
+			$options = array();
+			foreach ((array)$nodes as $node) {
+				$options[] = array(
+					'category_id' => (int)$node['category_id'],
+					'name' => $prefix . (string)$node['name'],
+				);
+				if (!empty($node['children'])) {
+					$options = array_merge($options, $this->buildFilterTemplateCategoryOptions($node['children'], $prefix . ' - '));
+				}
+			}
+			return $options;
+		}
 
 	private function syncSeoSitemap($enabled, $api_key, $settings) {
 		require_once DIR_SYSTEM . 'library/eleads/seo_sitemap_manager.php';

@@ -69,6 +69,13 @@
       #content .eleads-template-field {margin-bottom: 10px;}
       #content .eleads-template-field:last-child {margin-bottom: 0;}
       #content .eleads-template-field label {font-weight: 600; font-size: 12px; margin-bottom: 4px; color: #475569;}
+      #content .eleads-lang-tabs.nav-tabs {border-bottom: 0; margin: 8px 0 12px; display: flex; flex-wrap: wrap; gap: 8px;}
+      #content .eleads-lang-tabs.nav-tabs > li {float: none; margin: 0;}
+      #content .eleads-lang-tabs.nav-tabs > li > a {border: 1px solid #cbd5e1; border-radius: 999px; background: #f8fafc; color: #334155; padding: 6px 12px; font-weight: 600; margin: 0;}
+      #content .eleads-lang-tabs.nav-tabs > li.active > a,
+      #content .eleads-lang-tabs.nav-tabs > li.active > a:hover,
+      #content .eleads-lang-tabs.nav-tabs > li.active > a:focus {background: #0f172a; border-color: #0f172a; color: #fff;}
+      #content .eleads-lang-content {border: 1px solid #e2e8f0; border-radius: 10px; background: #fcfdff; padding: 12px;}
     </style>
     {% if api_key_required %}
       <form action="{{ action }}" method="post" enctype="multipart/form-data" id="form-eleads" class="form-horizontal eleads-wrap">
@@ -367,52 +374,66 @@
                                   <div class="eleads-template-card-title">Template #<span class="eleads-template-card-title-num">{{ loop.index }}</span></div>
                                   <button type="button" class="btn btn-danger btn-sm eleads-template-remove">{{ button_remove_template }}</button>
                                 </div>
-                                <div class="row">
-                                  <div class="col-sm-6">
-                                    <div class="eleads-template-field">
-                                      <label>{{ entry_filter_template_category }}</label>
-                                      <select name="module_eleads_filter_templates[{{ loop.index0 }}][category_id]" class="form-control">
-                                        <option value="0" {% if row.category_id == 0 %}selected{% endif %}>{{ text_all_categories }}</option>
-                                        {% for c in filter_template_categories %}
-                                          <option value="{{ c.category_id }}" {% if row.category_id == c.category_id %}selected{% endif %}>{{ c.name }}</option>
-                                        {% endfor %}
-                                      </select>
-                                    </div>
-                                    <div class="eleads-template-field">
-                                      <label>{{ entry_filter_template_h1 }}</label>
-                                      <input type="text" name="module_eleads_filter_templates[{{ loop.index0 }}][h1]" value="{{ row.h1 }}" class="form-control" />
-                                    </div>
-                                    <div class="eleads-template-field">
-                                      <label>{{ entry_filter_template_meta_title }}</label>
-                                      <input type="text" name="module_eleads_filter_templates[{{ loop.index0 }}][meta_title]" value="{{ row.meta_title }}" class="form-control" />
-                                    </div>
-                                  </div>
-                                  <div class="col-sm-6">
-                                    <div class="eleads-template-field">
-                                      <label>{{ entry_filter_template_meta_description }}</label>
-                                      <textarea name="module_eleads_filter_templates[{{ loop.index0 }}][meta_description]" rows="3" class="form-control">{{ row.meta_description }}</textarea>
-                                    </div>
-                                    <div class="eleads-template-field">
-                                      <label>{{ entry_filter_template_meta_keywords }}</label>
-                                      <textarea name="module_eleads_filter_templates[{{ loop.index0 }}][meta_keywords]" rows="3" class="form-control">{{ row.meta_keywords }}</textarea>
-                                    </div>
-                                  </div>
+                                <div class="eleads-template-field">
+                                  <label>{{ entry_filter_template_category }}</label>
+                                  <select name="module_eleads_filter_templates[{{ loop.index0 }}][category_id]" class="form-control">
+                                    <option value="0" {% if row.category_id == 0 %}selected{% endif %}>{{ text_all_categories }}</option>
+                                    {% for c in filter_template_categories %}
+                                      <option value="{{ c.category_id }}" {% if row.category_id == c.category_id %}selected{% endif %}>{{ c.name }}</option>
+                                    {% endfor %}
+                                  </select>
                                 </div>
-                                <div class="row">
-                                  <div class="col-sm-12">
-                                    <div class="eleads-template-field">
-                                      <label>{{ entry_filter_template_short_description }}</label>
-                                      <textarea name="module_eleads_filter_templates[{{ loop.index0 }}][short_description]" rows="4" class="form-control">{{ row.short_description }}</textarea>
+                                <ul class="nav nav-tabs eleads-lang-tabs">
+                                  {% for lang in languages %}
+                                    <li{% if loop.first %} class="active"{% endif %}>
+                                      <a href="#eleads-template-{{ loop.parent.index0 }}-{{ loop.index0 }}" data-toggle="tab">{{ lang.code }}</a>
+                                    </li>
+                                  {% endfor %}
+                                </ul>
+                                <div class="tab-content eleads-lang-content">
+                                  {% for lang in languages %}
+                                    {% set t = row.translations[lang.code] is defined ? row.translations[lang.code] : {} %}
+                                    <div class="tab-pane{% if loop.first %} active{% endif %}" id="eleads-template-{{ loop.parent.index0 }}-{{ loop.index0 }}">
+                                      <div class="row">
+                                        <div class="col-sm-6">
+                                          <div class="eleads-template-field">
+                                            <label>{{ entry_filter_template_h1 }}</label>
+                                            <input type="text" name="module_eleads_filter_templates[{{ loop.parent.index0 }}][translations][{{ lang.code }}][h1]" value="{{ t.h1|default('') }}" class="form-control" />
+                                          </div>
+                                          <div class="eleads-template-field">
+                                            <label>{{ entry_filter_template_meta_title }}</label>
+                                            <input type="text" name="module_eleads_filter_templates[{{ loop.parent.index0 }}][translations][{{ lang.code }}][meta_title]" value="{{ t.meta_title|default('') }}" class="form-control" />
+                                          </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                          <div class="eleads-template-field">
+                                            <label>{{ entry_filter_template_meta_description }}</label>
+                                            <textarea name="module_eleads_filter_templates[{{ loop.parent.index0 }}][translations][{{ lang.code }}][meta_description]" rows="3" class="form-control">{{ t.meta_description|default('') }}</textarea>
+                                          </div>
+                                          <div class="eleads-template-field">
+                                            <label>{{ entry_filter_template_meta_keywords }}</label>
+                                            <textarea name="module_eleads_filter_templates[{{ loop.parent.index0 }}][translations][{{ lang.code }}][meta_keywords]" rows="3" class="form-control">{{ t.meta_keywords|default('') }}</textarea>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div class="row">
+                                        <div class="col-sm-12">
+                                          <div class="eleads-template-field">
+                                            <label>{{ entry_filter_template_short_description }}</label>
+                                            <textarea name="module_eleads_filter_templates[{{ loop.parent.index0 }}][translations][{{ lang.code }}][short_description]" rows="4" class="form-control">{{ t.short_description|default('') }}</textarea>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div class="row">
+                                        <div class="col-sm-12">
+                                          <div class="eleads-template-field">
+                                            <label>{{ entry_filter_template_description }}</label>
+                                            <textarea name="module_eleads_filter_templates[{{ loop.parent.index0 }}][translations][{{ lang.code }}][description]" rows="5" class="form-control">{{ t.description|default('') }}</textarea>
+                                          </div>
+                                        </div>
+                                      </div>
                                     </div>
-                                  </div>
-                                </div>
-                                <div class="row">
-                                  <div class="col-sm-12">
-                                    <div class="eleads-template-field">
-                                      <label>{{ entry_filter_template_description }}</label>
-                                      <textarea name="module_eleads_filter_templates[{{ loop.index0 }}][description]" rows="5" class="form-control">{{ row.description }}</textarea>
-                                    </div>
-                                  </div>
+                                  {% endfor %}
                                 </div>
                               </div>
                             {% endfor %}
@@ -691,27 +712,37 @@
                 '<div class="eleads-template-card-title">Template #<span class="eleads-template-card-title-num"></span></div>' +
                 '<button type="button" class="btn btn-danger btn-sm eleads-template-remove">{{ button_remove_template|e('js') }}</button>' +
               '</div>' +
-              '<div class="row">' +
-                '<div class="col-sm-6">' +
-                  '<div class="eleads-template-field"><label>{{ entry_filter_template_category|e('js') }}</label><select name="module_eleads_filter_templates[' + index + '][category_id]" class="form-control">' + templateCategoryOptions(0) + '</select></div>' +
-                  '<div class="eleads-template-field"><label>{{ entry_filter_template_h1|e('js') }}</label><input type="text" name="module_eleads_filter_templates[' + index + '][h1]" class="form-control" /></div>' +
-                  '<div class="eleads-template-field"><label>{{ entry_filter_template_meta_title|e('js') }}</label><input type="text" name="module_eleads_filter_templates[' + index + '][meta_title]" class="form-control" /></div>' +
+              '<div class="eleads-template-field"><label>{{ entry_filter_template_category|e('js') }}</label><select name="module_eleads_filter_templates[' + index + '][category_id]" class="form-control">' + templateCategoryOptions(0) + '</select></div>' +
+              '<ul class="nav nav-tabs eleads-lang-tabs">' +
+                {% for lang in languages %}
+                '<li{% if loop.first %} class="active"{% endif %}><a href="#eleads-template-new-' + index + '-{{ loop.index0 }}" data-toggle="tab">{{ lang.code|e('js') }}</a></li>' +
+                {% endfor %}
+              '</ul>' +
+              '<div class="tab-content eleads-lang-content">' +
+                {% for lang in languages %}
+                '<div class="tab-pane{% if loop.first %} active{% endif %}" id="eleads-template-new-' + index + '-{{ loop.index0 }}">' +
+                  '<div class="row">' +
+                    '<div class="col-sm-6">' +
+                      '<div class="eleads-template-field"><label>{{ entry_filter_template_h1|e('js') }}</label><input type="text" name="module_eleads_filter_templates[' + index + '][translations][{{ lang.code|e('js') }}][h1]" class="form-control" /></div>' +
+                      '<div class="eleads-template-field"><label>{{ entry_filter_template_meta_title|e('js') }}</label><input type="text" name="module_eleads_filter_templates[' + index + '][translations][{{ lang.code|e('js') }}][meta_title]" class="form-control" /></div>' +
+                    '</div>' +
+                    '<div class="col-sm-6">' +
+                      '<div class="eleads-template-field"><label>{{ entry_filter_template_meta_description|e('js') }}</label><textarea name="module_eleads_filter_templates[' + index + '][translations][{{ lang.code|e('js') }}][meta_description]" rows="3" class="form-control"></textarea></div>' +
+                      '<div class="eleads-template-field"><label>{{ entry_filter_template_meta_keywords|e('js') }}</label><textarea name="module_eleads_filter_templates[' + index + '][translations][{{ lang.code|e('js') }}][meta_keywords]" rows="3" class="form-control"></textarea></div>' +
+                    '</div>' +
+                  '</div>' +
+                  '<div class="row">' +
+                    '<div class="col-sm-12">' +
+                      '<div class="eleads-template-field"><label>{{ entry_filter_template_short_description|e('js') }}</label><textarea name="module_eleads_filter_templates[' + index + '][translations][{{ lang.code|e('js') }}][short_description]" rows="4" class="form-control"></textarea></div>' +
+                    '</div>' +
+                  '</div>' +
+                  '<div class="row">' +
+                    '<div class="col-sm-12">' +
+                      '<div class="eleads-template-field"><label>{{ entry_filter_template_description|e('js') }}</label><textarea name="module_eleads_filter_templates[' + index + '][translations][{{ lang.code|e('js') }}][description]" rows="5" class="form-control"></textarea></div>' +
+                    '</div>' +
+                  '</div>' +
                 '</div>' +
-                '<div class="col-sm-6">' +
-                  '<div class="eleads-template-field"><label>{{ entry_filter_template_meta_description|e('js') }}</label><textarea name="module_eleads_filter_templates[' + index + '][meta_description]" rows="3" class="form-control"></textarea></div>' +
-                  '<div class="eleads-template-field"><label>{{ entry_filter_template_meta_keywords|e('js') }}</label><textarea name="module_eleads_filter_templates[' + index + '][meta_keywords]" rows="3" class="form-control"></textarea></div>' +
-                '</div>' +
-                '</div>' +
-              '</div>' +
-              '<div class="row">' +
-                '<div class="col-sm-12">' +
-                  '<div class="eleads-template-field"><label>{{ entry_filter_template_short_description|e('js') }}</label><textarea name="module_eleads_filter_templates[' + index + '][short_description]" rows="4" class="form-control"></textarea></div>' +
-                '</div>' +
-              '</div>' +
-              '<div class="row">' +
-                '<div class="col-sm-12">' +
-                  '<div class="eleads-template-field"><label>{{ entry_filter_template_description|e('js') }}</label><textarea name="module_eleads_filter_templates[' + index + '][description]" rows="5" class="form-control"></textarea></div>' +
-                '</div>' +
+                {% endfor %}
               '</div>';
             templateList.appendChild(card);
             bindTemplateRemove();

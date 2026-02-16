@@ -421,6 +421,22 @@ class ControllerExtensionModuleEleads extends Controller {
 		}
 		$this->document->setTitle(implode(' — ', $title_parts));
 
+		$seo_content = $this->buildFilterSeoContent($state, $store_language_code);
+		if (!empty($seo_content['h1'])) {
+			$data['heading_title'] = $seo_content['h1'];
+		}
+		if (!empty($seo_content['meta_title'])) {
+			$this->document->setTitle($seo_content['meta_title']);
+		}
+		if (!empty($seo_content['meta_description'])) {
+			$this->document->setDescription($seo_content['meta_description']);
+		}
+		if (!empty($seo_content['meta_keywords'])) {
+			$this->document->setKeywords($seo_content['meta_keywords']);
+		}
+		$data['filter_short_description'] = isset($seo_content['short_description']) ? $seo_content['short_description'] : '';
+		$data['filter_description'] = isset($seo_content['description']) ? $seo_content['description'] : '';
+
 		$data['column_left'] = $this->load->controller('common/column_left');
 		$data['column_right'] = $this->load->controller('common/column_right');
 		$data['content_top'] = $this->load->controller('common/content_top');
@@ -1048,6 +1064,183 @@ class ControllerExtensionModuleEleads extends Controller {
 		$text = html_entity_decode((string)$text, ENT_QUOTES, 'UTF-8');
 		$text = trim(str_replace('_', ' ', $text));
 		return function_exists('mb_strtolower') ? mb_strtolower($text) : strtolower($text);
+	}
+
+	private function buildFilterSeoContent($state, $store_language_code = '') {
+		$templates = (array)$this->config->get('module_eleads_filter_templates');
+		$selected = null;
+		$category_id = '';
+		$category_name = '';
+
+		if (!empty($state['category'])) {
+			$category_name = (string)$state['category'];
+			$category_id = $this->resolveCategoryIdByName($category_name);
+			if ($category_id !== '') {
+				$resolved = $this->resolveCategoryNameById((string)$category_id);
+				if ($resolved !== '') {
+					$category_name = $resolved;
+				}
+			}
+		}
+
+		foreach ((array)$templates as $row) {
+			if (!is_array($row)) {
+				continue;
+			}
+			$row_category_id = isset($row['category_id']) ? (int)$row['category_id'] : 0;
+			if ($row_category_id > 0 && (int)$category_id !== $row_category_id) {
+				continue;
+			}
+			if ($row_category_id > 0) {
+				$selected = $row;
+				break;
+			}
+			if ($selected === null) {
+				$selected = $row;
+			}
+		}
+
+		if (!$selected) {
+			return array(
+				'h1' => '',
+				'meta_title' => '',
+				'meta_description' => '',
+				'meta_keywords' => '',
+				'short_description' => '',
+				'description' => '',
+			);
+		}
+
+		$translation = $this->resolveFilterTemplateTranslation($selected, $store_language_code);
+		$tokens = $this->buildFilterTemplateTokens($state, $category_name, $category_id);
+		$result = array();
+		foreach (array('h1', 'meta_title', 'meta_description', 'meta_keywords', 'short_description', 'description') as $field) {
+			$template = isset($translation[$field]) ? (string)$translation[$field] : '';
+			$result[$field] = $this->replaceFilterTemplateTokens($template, $tokens);
+		}
+		return $result;
+	}
+
+	private function resolveFilterTemplateTranslation($template, $store_language_code) {
+		$translations = isset($template['translations']) && is_array($template['translations']) ? $template['translations'] : array();
+		$store_language_code = (string)$store_language_code;
+		if ($store_language_code !== '' && isset($translations[$store_language_code]) && is_array($translations[$store_language_code])) {
+			return $translations[$store_language_code];
+		}
+		$target_short = $this->normalizeFeedLang($store_language_code);
+		if ($target_short !== '') {
+			foreach ($translations as $lang_code => $fields) {
+				if (!is_array($fields)) {
+					continue;
+				}
+				if ($this->normalizeFeedLang((string)$lang_code) === $target_short) {
+					return $fields;
+				}
+			}
+		}
+		if ($translations) {
+			$first = reset($translations);
+			if (is_array($first)) {
+				return $first;
+			}
+		}
+		return array(
+			'h1' => isset($template['h1']) ? (string)$template['h1'] : '',
+			'meta_title' => isset($template['meta_title']) ? (string)$template['meta_title'] : '',
+			'meta_description' => isset($template['meta_description']) ? (string)$template['meta_description'] : '',
+			'meta_keywords' => isset($template['meta_keywords']) ? (string)$template['meta_keywords'] : '',
+			'short_description' => isset($template['short_description']) ? (string)$template['short_description'] : '',
+			'description' => isset($template['description']) ? (string)$template['description'] : '',
+		);
+	}
+
+	private function buildFilterTemplateTokens($state, $category_name, $category_id) {
+		$attributes = array();
+		foreach ((array)$state['filters'] as $name => $values) {
+			$attr_name = trim((string)$name);
+			if ($attr_name === '') {
+				continue;
+			}
+			$vals = array();
+			foreach ((array)$values as $val) {
+				$val = trim((string)$val);
+				if ($val !== '') {
+					$vals[] = $val;
+				}
+			}
+			$vals = array_values(array_unique($vals));
+			if ($vals) {
+				$attributes[] = array(
+					'name' => $attr_name,
+					'value' => implode('; ', $vals),
+				);
+			}
+		}
+
+		$brand = '';
+		foreach ($attributes as $attr) {
+			$key = function_exists('mb_strtolower') ? mb_strtolower($attr['name']) : strtolower($attr['name']);
+			if (in_array($key, array('brand', 'manufacturer', 'vendor', 'бренд', 'производитель'), true)) {
+				$brand = $attr['value'];
+				break;
+			}
+		}
+
+		$tokens = array(
+			'{$category}' => (string)$category_name,
+			'{$category_h1}' => (string)$this->resolveCategoryH1($category_id, $category_name),
+			'{$brand}' => (string)$brand,
+			'{$sitename}' => (string)$this->config->get('config_name'),
+		);
+
+		$max_depth = (int)$this->config->get('module_eleads_filter_max_index_depth');
+		if ($max_depth < 1) {
+			$max_depth = 1;
+		}
+		for ($i = 1; $i <= 20; $i++) {
+			$index = $i - 1;
+			$name_key = $i === 1 ? '{$attribute_name}' : '{$attribute_name_' . $i . '}';
+			$val_key = $i === 1 ? '{$attributes_val}' : '{$attributes_val_' . $i . '}';
+			if ($i <= $max_depth) {
+				$tokens[$name_key] = isset($attributes[$index]) ? $attributes[$index]['name'] : '';
+				$tokens[$val_key] = isset($attributes[$index]) ? $attributes[$index]['value'] : '';
+			} else {
+				$tokens[$name_key] = '';
+				$tokens[$val_key] = '';
+			}
+		}
+
+		return $tokens;
+	}
+
+	private function replaceFilterTemplateTokens($template, $tokens) {
+		$template = (string)$template;
+		if ($template === '') {
+			return '';
+		}
+		return str_replace(array_keys($tokens), array_values($tokens), $template);
+	}
+
+	private function resolveCategoryH1($category_id, $fallback) {
+		$cid = (int)$category_id;
+		if ($cid <= 0) {
+			return (string)$fallback;
+		}
+		$columns = $this->db->query("SHOW COLUMNS FROM " . DB_PREFIX . "category_description LIKE 'meta_h1'")->rows;
+		if (!$columns) {
+			return (string)$fallback;
+		}
+		$language_id = (int)$this->config->get('config_language_id');
+		$sql = "SELECT meta_h1 FROM " . DB_PREFIX . "category_description WHERE category_id = '" . $cid . "'";
+		if ($language_id > 0) {
+			$sql .= " AND language_id = '" . $language_id . "'";
+		}
+		$sql .= " LIMIT 1";
+		$query = $this->db->query($sql);
+		if (!empty($query->row['meta_h1'])) {
+			return trim((string)$query->row['meta_h1']);
+		}
+		return (string)$fallback;
 	}
 
 	private function normalizeProductIds($product_ids) {
