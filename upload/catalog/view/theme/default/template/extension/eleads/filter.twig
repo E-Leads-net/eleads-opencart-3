@@ -1,7 +1,72 @@
 {{ header }}
-<div id="product-search" class="container">
+<div id="product-search" class="container eleads-filter-page">
   <style>
-    .eleads-filter-check {
+    .eleads-filter-page {
+      --eleads-border: #e5e7eb;
+      --eleads-bg: #ffffff;
+      --eleads-muted: #6b7280;
+      --eleads-panel: #f8fafc;
+      --eleads-primary: #1f7ed0;
+      --eleads-primary-soft: #e8f3ff;
+    }
+    .eleads-filter-page .eleads-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .eleads-filter-page .eleads-toolbar .btn-group {
+      margin-right: 4px;
+    }
+    .eleads-filter-page .eleads-toolbar label {
+      margin: 0;
+      font-weight: 600;
+      color: #1f2937;
+    }
+    .eleads-filter-page .eleads-toolbar .eleads-select {
+      width: 190px;
+      max-width: 100%;
+      display: inline-block;
+      height: 36px;
+      border-radius: 6px;
+      border: 1px solid var(--eleads-border);
+      box-shadow: none;
+      background: var(--eleads-bg);
+    }
+    .eleads-filter-page .eleads-sidebar .list-group {
+      border: 1px solid var(--eleads-border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .eleads-filter-page .eleads-sidebar .list-group-item {
+      border-color: var(--eleads-border);
+      background: var(--eleads-bg);
+    }
+    .eleads-filter-page .eleads-sidebar .list-group-item.active {
+      background: var(--eleads-primary-soft);
+      color: #0f172a;
+      border-color: var(--eleads-border);
+      font-weight: 600;
+      text-shadow: none;
+    }
+    .eleads-filter-page .eleads-sidebar .eleads-group-title {
+      background: #f3f4f6;
+      color: #111827;
+      border-color: var(--eleads-border);
+      font-weight: 700;
+      text-decoration: none;
+      cursor: default;
+      pointer-events: none;
+    }
+    .eleads-filter-page .eleads-sidebar .eleads-categories-scroll {
+      max-height: 320px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .eleads-filter-page .eleads-filter-check {
       margin: 0;
       font-weight: 400;
       cursor: pointer;
@@ -9,9 +74,28 @@
       align-items: center;
       gap: 8px;
     }
-    .eleads-filter-check input[type="checkbox"] {
+    .eleads-filter-page .eleads-filter-check input[type="checkbox"] {
       margin: 0;
       cursor: pointer;
+    }
+    .eleads-filter-page .eleads-facet-value {
+      color: #111827;
+    }
+    .eleads-filter-page .eleads-nav-btn {
+      min-width: 86px;
+      border-radius: 6px;
+    }
+    .eleads-filter-page .eleads-short-description,
+    .eleads-filter-page .eleads-description {
+      margin: 12px 0 16px;
+    }
+    @media (max-width: 991px) {
+      .eleads-filter-page .eleads-toolbar {
+        justify-content: flex-start;
+      }
+      .eleads-filter-page .eleads-toolbar .eleads-select {
+        width: 160px;
+      }
     }
   </style>
   <ul class="breadcrumb">
@@ -32,47 +116,47 @@
       {{ content_top }}
       <h1>{{ heading_title }}</h1>
       {% if filter_short_description %}
-        <div class="category-description">{{ filter_short_description|raw }}</div>
+        <div class="category-description eleads-short-description">{{ filter_short_description|raw }}</div>
       {% endif %}
 
-      <div class="row">
-        <div class="col-sm-12 text-right">
-          <div class="btn-group btn-group-sm" style="margin-right: 8px;">
+      <div class="eleads-toolbar">
+          <div class="btn-group btn-group-sm">
             <button type="button" id="list-view" class="btn btn-default" data-toggle="tooltip" title="{{ button_list }}"><i class="fa fa-th-list"></i></button>
             <button type="button" id="grid-view" class="btn btn-default" data-toggle="tooltip" title="{{ button_grid }}"><i class="fa fa-th"></i></button>
           </div>
           <label>{{ text_sort }}</label>
-          <select class="form-control" style="display:inline-block;width:auto;" onchange="location = this.value;">
+          <select class="eleads-select" onchange="location = this.value;">
             {% for sort in sorts %}
               <option value="{{ sort.href }}" {% if selected_sort == sort.value %}selected{% endif %}>{{ sort.name }}</option>
             {% endfor %}
           </select>
-          <label style="margin-left: 8px;">{{ text_limit }}</label>
-          <select class="form-control" style="display:inline-block;width:auto;" onchange="location = this.value;">
+          <label>{{ text_limit }}</label>
+          <select class="eleads-select" onchange="location = this.value;">
             {% for limits in limits %}
               <option value="{{ limits.href }}" {% if limits.value == selected_limit %}selected{% endif %}>{{ limits.text }}</option>
             {% endfor %}
           </select>
-        </div>
       </div>
 
       <hr />
       <div class="row">
-        <aside class="col-sm-4 col-md-3">
-          <div class="list-group">
-            <a class="list-group-item active">Categories</a>
-            <a href="{{ category_reset_href }}" class="list-group-item {% if not selected_category %}active{% endif %}">
-              All categories
-            </a>
-            {% for category in categories %}
-              <a href="{{ category.href }}" class="list-group-item {% if category.active %}active{% endif %}">
-                {{ category.name }} ({{ category.count }})
+        <aside class="col-sm-4 col-md-3 eleads-sidebar">
+          <div class="list-group eleads-categories">
+            <div class="list-group-item eleads-group-title">Categories</div>
+            <div class="eleads-categories-scroll">
+              <a href="{{ category_reset_href }}" class="list-group-item {% if not selected_category %}active{% endif %}">
+                All categories
               </a>
-            {% endfor %}
+              {% for category in categories %}
+                <a href="{{ category.href }}" class="list-group-item {% if category.active %}active{% endif %}">
+                  {{ category.name }} ({{ category.count }})
+                </a>
+              {% endfor %}
+            </div>
           </div>
           {% for facet in facets %}
             <div class="list-group">
-              <a class="list-group-item active">{{ facet.name }}</a>
+              <div class="list-group-item eleads-group-title">{{ facet.name }}</div>
               {% for item in facet.items %}
                 <div class="list-group-item {% if item.active %}active{% endif %}">
                   <label class="eleads-filter-check">
@@ -81,7 +165,7 @@
                       {% if item.active %}checked="checked"{% endif %}
                       onclick="window.location.href='{{ item.href|e('js') }}';"
                     />
-                    <span>{{ item.value }} ({{ item.count }})</span>
+                    <span class="eleads-facet-value">{{ item.value }} ({{ item.count }})</span>
                   </label>
                 </div>
               {% endfor %}
@@ -138,12 +222,12 @@
           {% endif %}
           <div class="row">
             <div class="col-sm-12 text-right">
-              <a href="{{ prev_href ?: '#' }}" class="btn btn-default {% if not prev_href %}disabled{% endif %}">Prev</a>
-              <a href="{{ next_href ?: '#' }}" class="btn btn-default {% if not next_href %}disabled{% endif %}">Next</a>
+              <a href="{{ prev_href ?: '#' }}" class="btn btn-default eleads-nav-btn {% if not prev_href %}disabled{% endif %}">Prev</a>
+              <a href="{{ next_href ?: '#' }}" class="btn btn-default eleads-nav-btn {% if not next_href %}disabled{% endif %}">Next</a>
             </div>
           </div>
           {% if filter_description %}
-            <div class="category-description">{{ filter_description|raw }}</div>
+            <div class="category-description eleads-description">{{ filter_description|raw }}</div>
           {% endif %}
         </div>
       </div>
