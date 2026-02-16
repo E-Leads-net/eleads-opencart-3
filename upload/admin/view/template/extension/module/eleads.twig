@@ -346,7 +346,7 @@
                           </div>
                           <div class="eleads-tree">
                             <ul class="eleads-tree-list eleads-whitelist-attributes-list">
-                              {% for attribute in attributes %}
+                              {% for attribute in whitelist_attributes %}
                                 <li class="eleads-tree-item">
                                   <span class="eleads-tree-spacer"></span>
                                   <label class="eleads-tree-label">
@@ -356,6 +356,9 @@
                                   </label>
                                 </li>
                               {% endfor %}
+                              {% if not whitelist_attributes %}
+                                <li class="eleads-tree-item"><span class="eleads-tree-text">Select attributes in Export -> Filter Attributes first.</span></li>
+                              {% endif %}
                             </ul>
                           </div>
                         </div>
@@ -374,22 +377,28 @@
                                   <div class="eleads-template-card-title">Template #<span class="eleads-template-card-title-num">{{ loop.index }}</span></div>
                                   <button type="button" class="btn btn-danger btn-sm eleads-template-remove">{{ button_remove_template }}</button>
                                 </div>
-                                <div class="eleads-template-field">
-                                  <label>{{ entry_filter_template_category }}</label>
-                                  <select name="module_eleads_filter_templates[{{ loop.index0 }}][category_id]" class="form-control">
-                                    <option value="0" {% if row.category_id == 0 %}selected{% endif %}>{{ text_all_categories }}</option>
-                                    {% for c in filter_template_categories %}
-                                      <option value="{{ c.category_id }}" {% if row.category_id == c.category_id %}selected{% endif %}>{{ c.name }}</option>
-                                    {% endfor %}
-                                  </select>
-                                </div>
-                                <div class="eleads-template-field">
-                                  <label>{{ entry_filter_template_depth }}</label>
-                                  <select name="module_eleads_filter_templates[{{ loop.index0 }}][depth]" class="form-control eleads-template-depth">
-                                    {% for d in 0..module_eleads_filter_max_index_depth %}
-                                      <option value="{{ d }}" {% if (row.depth|default(0)) == d %}selected{% endif %}>{{ d }}</option>
-                                    {% endfor %}
-                                  </select>
+                                <div class="row">
+                                  <div class="col-sm-8">
+                                    <div class="eleads-template-field">
+                                      <label>{{ entry_filter_template_category }}</label>
+                                      <select name="module_eleads_filter_templates[{{ loop.index0 }}][category_id]" class="form-control">
+                                        <option value="0" {% if row.category_id == 0 %}selected{% endif %}>{{ text_all_categories }}</option>
+                                        {% for c in filter_template_categories %}
+                                          <option value="{{ c.category_id }}" {% if row.category_id == c.category_id %}selected{% endif %}>{{ c.name }}</option>
+                                        {% endfor %}
+                                      </select>
+                                    </div>
+                                  </div>
+                                  <div class="col-sm-4">
+                                    <div class="eleads-template-field">
+                                      <label>{{ entry_filter_template_depth }}</label>
+                                      <select name="module_eleads_filter_templates[{{ loop.index0 }}][depth]" class="form-control eleads-template-depth">
+                                        {% for d in 0..module_eleads_filter_max_index_depth %}
+                                          <option value="{{ d }}" {% if (row.depth|default(0)) == d %}selected{% endif %}>{{ d }}</option>
+                                        {% endfor %}
+                                      </select>
+                                    </div>
+                                  </div>
                                 </div>
                                 <ul class="nav nav-tabs eleads-lang-tabs">
                                   {% for lang in languages %}
@@ -729,8 +738,14 @@
                 '<div class="eleads-template-card-title">Template #<span class="eleads-template-card-title-num"></span></div>' +
                 '<button type="button" class="btn btn-danger btn-sm eleads-template-remove">{{ button_remove_template|e('js') }}</button>' +
               '</div>' +
-              '<div class="eleads-template-field"><label>{{ entry_filter_template_category|e('js') }}</label><select name="module_eleads_filter_templates[' + index + '][category_id]" class="form-control">' + templateCategoryOptions(0) + '</select></div>' +
-              '<div class="eleads-template-field"><label>{{ entry_filter_template_depth|e('js') }}</label><select name="module_eleads_filter_templates[' + index + '][depth]" class="form-control eleads-template-depth">' + templateDepthOptions(0) + '</select></div>' +
+              '<div class="row">' +
+                '<div class="col-sm-8">' +
+                  '<div class="eleads-template-field"><label>{{ entry_filter_template_category|e('js') }}</label><select name="module_eleads_filter_templates[' + index + '][category_id]" class="form-control">' + templateCategoryOptions(0) + '</select></div>' +
+                '</div>' +
+                '<div class="col-sm-4">' +
+                  '<div class="eleads-template-field"><label>{{ entry_filter_template_depth|e('js') }}</label><select name="module_eleads_filter_templates[' + index + '][depth]" class="form-control eleads-template-depth">' + templateDepthOptions(0) + '</select></div>' +
+                '</div>' +
+              '</div>' +
               '<ul class="nav nav-tabs eleads-lang-tabs">' +
                 {% for lang in languages %}
                 '<li{% if loop.first %} class="active"{% endif %}><a href="#eleads-template-new-' + index + '-{{ loop.index0 }}" data-toggle="tab">{{ lang.code|e('js') }}</a></li>' +

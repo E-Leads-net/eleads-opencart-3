@@ -191,6 +191,11 @@ class ControllerExtensionModuleEleads extends Controller {
 				$data['categories_tree_html'] = $this->renderCategoriesTreeHtml($tree, $selected);
 				$data['filter_template_categories'] = $this->buildFilterTemplateCategoryOptions($tree);
 				$data['attributes'] = $this->model_catalog_attribute->getAttributes();
+				$allowed_filter_attributes = array_flip(array_map('intval', (array)$data['module_eleads_filter_attributes']));
+				$data['whitelist_attributes'] = array_values(array_filter((array)$data['attributes'], function($attribute) use ($allowed_filter_attributes) {
+					$aid = isset($attribute['attribute_id']) ? (int)$attribute['attribute_id'] : 0;
+					return $aid > 0 && isset($allowed_filter_attributes[$aid]);
+				}));
 			$options = $this->model_catalog_option->getOptions();
 			foreach ($options as &$option) {
 				$option['option_value'] = $this->model_catalog_option->getOptionValues($option['option_id']);
@@ -208,6 +213,7 @@ class ControllerExtensionModuleEleads extends Controller {
 			$data['languages'] = array();
 			$data['categories_tree_html'] = '';
 				$data['attributes'] = array();
+				$data['whitelist_attributes'] = array();
 				$data['options'] = array();
 				$data['feed_urls'] = array();
 				$data['update_info'] = array();
