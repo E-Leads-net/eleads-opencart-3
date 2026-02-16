@@ -94,6 +94,10 @@ class EleadsSyncPayloadBuilder {
 		foreach ($grouped_attributes as $name => $values) {
 			$attributes_map[$name] = implode('; ', $values);
 		}
+		$attribute_filters = array_values(array_unique(array_values(array_intersect(
+			array_keys($attributes_map),
+			array_map('strval', (array)$attribute_filters)
+		))));
 
 		$option_values = array();
 		foreach ($options as $opt) {
@@ -109,6 +113,28 @@ class EleadsSyncPayloadBuilder {
 			$attributes_map['Опции'] = implode(' | ', $option_values);
 		}
 
+		$product_payload = array(
+			'title' => (string)$product['name'],
+			'description' => (string)(isset($product['description']) ? $product['description'] : ''),
+			'short_description' => (string)$short_description,
+			'price' => $price,
+			'old_price' => $old_price,
+			'currency' => $currency,
+			'quantity' => (int)$quantity,
+			'stock_status' => $stock_status,
+			'vendor' => $brand_name,
+			'sku' => (string)$product['sku'],
+			'label' => $label,
+			'sort_order' => isset($product['sort_order']) ? (int)$product['sort_order'] : 0,
+			'images' => $images,
+		);
+		if (!empty($attributes_map)) {
+			$product_payload['attributes'] = (object)$attributes_map;
+		}
+		if (!empty($attribute_filters)) {
+			$product_payload['attribute_filters'] = array_values($attribute_filters);
+		}
+
 		return array(
 			'language' => (string)$lang_code,
 			'payload' => array(
@@ -118,23 +144,7 @@ class EleadsSyncPayloadBuilder {
 					'url' => $product_url,
 					'group_id' => (string)$product_id,
 				),
-				'product' => array(
-					'title' => (string)$product['name'],
-					'description' => (string)(isset($product['description']) ? $product['description'] : ''),
-					'short_description' => (string)$short_description,
-					'price' => $price,
-					'old_price' => $old_price,
-					'currency' => $currency,
-					'quantity' => (int)$quantity,
-					'stock_status' => $stock_status,
-					'vendor' => $brand_name,
-					'sku' => (string)$product['sku'],
-					'label' => $label,
-					'sort_order' => isset($product['sort_order']) ? (int)$product['sort_order'] : 0,
-					'attributes' => (object)$attributes_map,
-					'attribute_filters' => $attribute_filters,
-					'images' => $images,
-				),
+				'product' => $product_payload,
 				'category' => $category_payload,
 			),
 		);

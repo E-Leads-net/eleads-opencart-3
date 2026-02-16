@@ -25,6 +25,18 @@
 				$this->request->get['route'] = 'extension/module/eleads/languages';
 				return;
 			}
+			if (preg_match('#^([a-zA-Z0-9_-]+)/e-filter(?:/(.*))?$#', $route, $m)) {
+				$this->request->get['route'] = 'extension/module/eleads/filterPage';
+				$this->request->get['lang'] = $m[1];
+				$this->request->get['fpath'] = isset($m[2]) ? (string)$m[2] : '';
+				return;
+			}
+			if ($route === 'e-filter' || strpos($route, 'e-filter/') === 0) {
+				$tail = $route === 'e-filter' ? '' : substr($route, strlen('e-filter/'));
+				$this->request->get['route'] = 'extension/module/eleads/filterPage';
+				$this->request->get['fpath'] = (string)$tail;
+				return;
+			}
 			if (preg_match('#^([a-zA-Z0-9_-]+)/e-search/(.+)$#', $route, $m)) {
 				$lang = $m[1];
 				$tail = $m[2];

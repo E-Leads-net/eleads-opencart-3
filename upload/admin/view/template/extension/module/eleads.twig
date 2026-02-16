@@ -87,6 +87,7 @@
         <div class="panel-heading">
           <ul class="nav nav-tabs">
             <li class="active"><a href="#tab-export" data-toggle="tab">{{ tab_export }}</a></li>
+            <li><a href="#tab-filter" data-toggle="tab">{{ tab_filter }}</a></li>
             {% if seo_tab_available %}
             <li><a href="#tab-seo" data-toggle="tab">{{ tab_seo }}</a></li>
             {% endif %}
@@ -292,6 +293,57 @@
             </div>
           </div>
 
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-pane" id="tab-filter">
+              <div class="row">
+                <div class="col-sm-12">
+                  <div class="panel panel-default eleads-card eleads-section">
+                    <div class="panel-heading"><strong>{{ tab_filter }}</strong></div>
+                    <div class="panel-body">
+                      <div class="form-group">
+                        <label class="col-sm-2 control-label">{{ entry_filter_pages_enabled }}</label>
+                        <div class="col-sm-10">
+                          <select name="module_eleads_filter_pages_enabled" class="form-control">
+                            <option value="1" {% if module_eleads_filter_pages_enabled %}selected{% endif %}>{{ text_enabled }}</option>
+                            <option value="0" {% if not module_eleads_filter_pages_enabled %}selected{% endif %}>{{ text_disabled }}</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label class="col-sm-2 control-label">{{ entry_filter_max_index_depth }}</label>
+                        <div class="col-sm-10">
+                          <input type="number" min="1" max="10" name="module_eleads_filter_max_index_depth" value="{{ module_eleads_filter_max_index_depth }}" class="form-control"/>
+                          <div class="help-block">{{ help_filter_depth_rules }}</div>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label class="col-sm-2 control-label">{{ entry_filter_whitelist_attributes }}</label>
+                        <div class="col-sm-10">
+                          <div class="btn-group btn-group-sm eleads-btn-group" role="group" style="margin-bottom: 8px;">
+                            <button type="button" class="btn btn-default" id="eleads-whitelist-attributes-all">Select all</button>
+                            <button type="button" class="btn btn-default" id="eleads-whitelist-attributes-none">Select none</button>
+                          </div>
+                          <div class="eleads-tree">
+                            <ul class="eleads-tree-list eleads-whitelist-attributes-list">
+                              {% for attribute in attributes %}
+                                <li class="eleads-tree-item">
+                                  <span class="eleads-tree-spacer"></span>
+                                  <label class="eleads-tree-label">
+                                    <input type="checkbox" name="module_eleads_filter_whitelist_attributes[]" value="{{ attribute.attribute_id }}" {% if attribute.attribute_id in module_eleads_filter_whitelist_attributes %}checked{% endif %}>
+                                    <span class="eleads-tree-box"></span>
+                                    <span class="eleads-tree-text">{{ attribute.name }}</span>
+                                  </label>
+                                </li>
+                              {% endfor %}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -560,7 +612,7 @@
           var btn = document.getElementById(buttonId);
           if (!btn) return;
           btn.addEventListener('click', function() {
-            var group = btn.closest('.form-group');
+            var group = btn.closest('.form-group, .row');
             if (!group) return;
             var items = group.querySelectorAll('input[type="checkbox"]');
             Array.prototype.forEach.call(items, function(cb) {
@@ -572,6 +624,8 @@
         bindSelectAll('eleads-attributes-none', false);
         bindSelectAll('eleads-options-all', true);
         bindSelectAll('eleads-options-none', false);
+        bindSelectAll('eleads-whitelist-attributes-all', true);
+        bindSelectAll('eleads-whitelist-attributes-none', false);
       })();
     </script>
   </div>

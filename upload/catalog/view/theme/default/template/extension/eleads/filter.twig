@@ -1,0 +1,130 @@
+{{ header }}
+<div id="product-search" class="container">
+  <ul class="breadcrumb">
+    {% for breadcrumb in breadcrumbs %}
+      <li><a href="{{ breadcrumb.href }}">{{ breadcrumb.text }}</a></li>
+    {% endfor %}
+  </ul>
+  <div class="row">
+    {{ column_left }}
+    {% if column_left and column_right %}
+      {% set class = 'col-sm-6' %}
+    {% elseif column_left or column_right %}
+      {% set class = 'col-sm-9' %}
+    {% else %}
+      {% set class = 'col-sm-12' %}
+    {% endif %}
+    <div id="content" class="{{ class }}">
+      {{ content_top }}
+      <h1>{{ heading_title }}</h1>
+
+      {% if is_noindex %}
+        <div class="alert alert-warning">This page is marked as noindex by module rules.</div>
+      {% endif %}
+
+      <div class="row">
+        <div class="col-sm-12 text-right">
+          <div class="btn-group btn-group-sm" style="margin-right: 8px;">
+            <button type="button" id="list-view" class="btn btn-default" data-toggle="tooltip" title="{{ button_list }}"><i class="fa fa-th-list"></i></button>
+            <button type="button" id="grid-view" class="btn btn-default" data-toggle="tooltip" title="{{ button_grid }}"><i class="fa fa-th"></i></button>
+          </div>
+          <label>{{ text_sort }}</label>
+          <select class="form-control" style="display:inline-block;width:auto;" onchange="location = this.value;">
+            {% for sort in sorts %}
+              <option value="{{ sort.href }}" {% if selected_sort == sort.value %}selected{% endif %}>{{ sort.name }}</option>
+            {% endfor %}
+          </select>
+          <label style="margin-left: 8px;">{{ text_limit }}</label>
+          <select class="form-control" style="display:inline-block;width:auto;" onchange="location = this.value;">
+            {% for limits in limits %}
+              <option value="{{ limits.href }}" {% if limits.value == selected_limit %}selected{% endif %}>{{ limits.text }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <hr />
+      <div class="row">
+        <aside class="col-sm-4 col-md-3">
+          <div class="list-group">
+            <a class="list-group-item active">Categories</a>
+            {% for category in categories %}
+              <a href="{{ category.href }}" class="list-group-item {% if category.active %}active{% endif %}">
+                {{ category.name }} ({{ category.count }})
+              </a>
+            {% endfor %}
+          </div>
+          {% for facet in facets %}
+            <div class="list-group">
+              <a class="list-group-item active">{{ facet.name }}</a>
+              {% for item in facet.items %}
+                <a href="{{ item.href }}" class="list-group-item {% if item.active %}active{% endif %}">
+                  {{ item.value }} ({{ item.count }})
+                </a>
+              {% endfor %}
+            </div>
+          {% endfor %}
+        </aside>
+        <div class="col-sm-8 col-md-9">
+          {% if products %}
+          <div class="row">
+            {% for product in products %}
+            <div class="product-layout product-grid col-lg-4 col-md-4 col-sm-6 col-xs-12">
+              <div class="product-thumb">
+                <div class="image"><a href="{{ product.href }}"><img src="{{ product.thumb }}" alt="{{ product.name }}" title="{{ product.name }}" class="img-responsive" /></a></div>
+                <div>
+                  <div class="caption">
+                    <h4><a href="{{ product.href }}">{{ product.name }}</a></h4>
+                    <p>{{ product.description }}</p>
+                    {% if product.price %}
+                    <p class="price">
+                      {% if not product.special %}
+                      {{ product.price }}
+                      {% else %}
+                      <span class="price-new">{{ product.special }}</span> <span class="price-old">{{ product.price }}</span>
+                      {% endif %}
+                      {% if product.tax %}
+                      <span class="price-tax">{{ text_tax }} {{ product.tax }}</span>
+                      {% endif %}
+                    </p>
+                    {% endif %}
+                    {% if product.rating %}
+                    <div class="rating">
+                      {% for i in 1..5 %}
+                      {% if product.rating < i %}
+                      <span class="fa fa-stack"><i class="fa fa-star-o fa-stack-2x"></i></span>
+                      {% else %}
+                      <span class="fa fa-stack"><i class="fa fa-star fa-stack-2x"></i><i class="fa fa-star-o fa-stack-2x"></i></span>
+                      {% endif %}
+                      {% endfor %}
+                    </div>
+                    {% endif %}
+                  </div>
+                  <div class="button-group">
+                    <button type="button" onclick="cart.add('{{ product.product_id }}');"><i class="fa fa-shopping-cart"></i> <span class="hidden-xs hidden-sm hidden-md">{{ button_cart }}</span></button>
+                    <button type="button" data-toggle="tooltip" title="{{ button_wishlist }}" onclick="wishlist.add('{{ product.product_id }}');"><i class="fa fa-heart"></i></button>
+                    <button type="button" data-toggle="tooltip" title="{{ button_compare }}" onclick="compare.add('{{ product.product_id }}');"><i class="fa fa-exchange"></i></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p>{{ text_empty }}</p>
+          {% endif %}
+          <div class="row">
+            <div class="col-sm-12 text-right">
+              <a href="{{ prev_href ?: '#' }}" class="btn btn-default {% if not prev_href %}disabled{% endif %}">Prev</a>
+              <a href="{{ next_href ?: '#' }}" class="btn btn-default {% if not next_href %}disabled{% endif %}">Next</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {{ content_bottom }}
+    </div>
+    {{ column_right }}
+  </div>
+</div>
+{{ footer }}

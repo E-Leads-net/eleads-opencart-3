@@ -26,9 +26,10 @@ class ControllerExtensionModuleEleads extends Controller {
 			$is_api_form = true;
 			$api_key_submitted = trim((string)$this->request->post['module_eleads_api_key']);
 			$status = $this->getApiKeyStatusData($api_key_submitted);
-			$api_key_status = $status !== null ? !empty($status['ok']) : null;
+			$this->storeProjectIdFromStatus($status);
+			$api_key_status = $status !== null ? !empty($status['ok']) : false;
 			$seo_status = $status !== null ? (!empty($status['seo_status'])) : null;
-			if ($api_key_submitted !== '' && $api_key_status !== false) {
+			if ($api_key_submitted !== '' && $api_key_status === true) {
 				$settings_current = $this->model_setting_setting->getSetting('module_eleads');
 				$settings_current['module_eleads_api_key'] = $api_key_submitted;
 				$this->model_setting_setting->editSetting('module_eleads', $settings_current);
@@ -41,11 +42,12 @@ class ControllerExtensionModuleEleads extends Controller {
 		}
 
 		if (!$is_api_form && $api_key !== '') {
-			// Keep settings accessible when token-status endpoint is temporarily unavailable.
-			$api_key_valid = true;
 			$status = $this->getApiKeyStatusData($api_key);
-			if ($status !== null) {
-				$seo_status = !empty($status['seo_status']);
+			$this->storeProjectIdFromStatus($status);
+			$api_key_valid = ($status !== null) ? !empty($status['ok']) : true;
+			$seo_status = ($status !== null) ? !empty($status['seo_status']) : null;
+			if (!$api_key_valid) {
+				$api_key_error = 'invalid';
 			}
 		}
 
@@ -65,14 +67,18 @@ class ControllerExtensionModuleEleads extends Controller {
 			} elseif ($this->validate()) {
 				$settings_current = $this->model_setting_setting->getSetting('module_eleads');
 				$seo_prev = !empty($settings_current['module_eleads_seo_pages_enabled']);
-				$this->model_setting_setting->editSetting('module_eleads', $this->request->post);
+				$settings_new = array_merge($settings_current, $this->request->post);
+				if (empty($settings_new['module_eleads_api_key'])) {
+					$settings_new['module_eleads_api_key'] = $api_key;
+				}
+				$this->model_setting_setting->editSetting('module_eleads', $settings_new);
 				$this->syncWidgetLoaderTag(
-					!empty($this->request->post['module_eleads_status']),
-					isset($this->request->post['module_eleads_api_key']) ? (string)$this->request->post['module_eleads_api_key'] : $api_key
+					!empty($settings_new['module_eleads_status']),
+					(string)$settings_new['module_eleads_api_key']
 				);
-				$seo_new = !empty($this->request->post['module_eleads_seo_pages_enabled']);
+				$seo_new = !empty($settings_new['module_eleads_seo_pages_enabled']);
 				if ($seo_prev !== $seo_new || $seo_new) {
-					$this->syncSeoSitemap($seo_new, (string)$api_key, $this->request->post);
+					$this->syncSeoSitemap($seo_new, (string)$settings_new['module_eleads_api_key'], $settings_new);
 				}
 				$this->session->data['success'] = $this->language->get('text_success');
 				$this->response->redirect($this->url->link('marketplace/extension', 'user_token=' . $this->session->data['user_token'] . '&type=module', true));
@@ -113,6 +119,7 @@ class ControllerExtensionModuleEleads extends Controller {
 		$data['button_save'] = $this->language->get('button_save');
 		$data['button_cancel'] = $this->language->get('button_cancel');
 		$data['tab_export'] = $this->language->get('tab_export');
+		$data['tab_filter'] = $this->language->get('tab_filter');
 		$data['tab_seo'] = $this->language->get('tab_seo');
 		$data['tab_api'] = $this->language->get('tab_api');
 		$data['tab_update'] = $this->language->get('tab_update');
@@ -124,6 +131,13 @@ class ControllerExtensionModuleEleads extends Controller {
 		$data['entry_filter_option_values'] = $this->language->get('entry_filter_option_values');
 		$data['entry_filter_attributes_toggle'] = $this->language->get('entry_filter_attributes_toggle');
 		$data['entry_filter_option_values_toggle'] = $this->language->get('entry_filter_option_values_toggle');
+		$data['entry_filter_pages_enabled'] = $this->language->get('entry_filter_pages_enabled');
+		$data['entry_filter_max_index_depth'] = $this->language->get('entry_filter_max_index_depth');
+		$data['entry_filter_min_products_noindex'] = $this->language->get('entry_filter_min_products_noindex');
+		$data['entry_filter_min_products_recommended'] = $this->language->get('entry_filter_min_products_recommended');
+		$data['entry_filter_whitelist_attributes'] = $this->language->get('entry_filter_whitelist_attributes');
+		$data['help_filter_depth_rules'] = $this->language->get('help_filter_depth_rules');
+		$data['help_filter_product_limits'] = $this->language->get('help_filter_product_limits');
 		$data['entry_grouped'] = $this->language->get('entry_grouped');
 		$data['entry_sync_enabled'] = $this->language->get('entry_sync_enabled');
 		$data['entry_shop_name'] = $this->language->get('entry_shop_name');
@@ -193,6 +207,7 @@ class ControllerExtensionModuleEleads extends Controller {
 
 	private function checkApiKeyStatus($api_key) {
 		$status = $this->getApiKeyStatusData($api_key);
+		$this->storeProjectIdFromStatus($status);
 		if ($status === null) {
 			return null;
 		}
@@ -236,8 +251,26 @@ class ControllerExtensionModuleEleads extends Controller {
 		}
 		return array(
 			'ok' => !empty($data['ok']),
-			'seo_status' => isset($data['seo_status']) ? (bool)$data['seo_status'] : null
+			'seo_status' => isset($data['seo_status']) ? (bool)$data['seo_status'] : null,
+			'project_id' => isset($data['project_id']) ? (int)$data['project_id'] : null
 		);
+	}
+
+	private function storeProjectIdFromStatus($status) {
+		if (!is_array($status) || !array_key_exists('project_id', $status)) {
+			return;
+		}
+		$project_id = (int)$status['project_id'];
+		if ($project_id <= 0) {
+			return;
+		}
+		$this->load->model('setting/setting');
+		$settings = $this->model_setting_setting->getSetting('module_eleads');
+		if (isset($settings['module_eleads_project_id']) && (int)$settings['module_eleads_project_id'] === $project_id) {
+			return;
+		}
+		$settings['module_eleads_project_id'] = $project_id;
+		$this->model_setting_setting->editSetting('module_eleads', $settings);
 	}
 
 	public function update() {
@@ -330,6 +363,11 @@ class ControllerExtensionModuleEleads extends Controller {
 			'module_eleads_filter_option_values' => array(),
 			'module_eleads_filter_attributes_enabled' => 0,
 			'module_eleads_filter_option_values_enabled' => 0,
+			'module_eleads_filter_pages_enabled' => 0,
+			'module_eleads_filter_max_index_depth' => 2,
+			'module_eleads_filter_min_products_noindex' => 5,
+			'module_eleads_filter_min_products_recommended' => 10,
+			'module_eleads_filter_whitelist_attributes' => array(),
 			'module_eleads_grouped' => 1,
 			'module_eleads_sync_enabled' => 0,
 			'module_eleads_shop_name' => (string)$this->config->get('config_name'),

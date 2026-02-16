@@ -207,6 +207,226 @@ class ControllerExtensionModuleEleads extends Controller {
 		)));
 	}
 
+	public function filterPage() {
+		$settings = $this->config->get('module_eleads_filter_pages_enabled');
+		if (empty($settings)) {
+			$this->response->addHeader('HTTP/1.1 404 Not Found');
+			return;
+		}
+
+		$route_lang = isset($this->request->get['lang']) ? trim((string)$this->request->get['lang']) : '';
+		$fpath = isset($this->request->get['fpath']) ? trim((string)$this->request->get['fpath']) : '';
+		$state = $this->parseFilterStateFromPath($fpath);
+		$route_query = isset($this->request->get['q']) ? trim((string)$this->request->get['q']) : (isset($this->request->get['query']) ? trim((string)$this->request->get['query']) : '');
+		if ($route_query !== '') {
+			$state['query'] = $route_query;
+		}
+		$route_sort = isset($this->request->get['sort']) ? trim((string)$this->request->get['sort']) : '';
+		if ($route_sort !== '' && in_array($route_sort, array('price_asc', 'price_desc', 'popularity'), true)) {
+			$state['sort'] = $route_sort;
+		}
+		$route_page = isset($this->request->get['page']) ? (int)$this->request->get['page'] : 0;
+		if ($route_page > 1) {
+			$state['page'] = $route_page;
+		}
+		$route_limit = isset($this->request->get['limit']) ? (int)$this->request->get['limit'] : 0;
+		if ($route_limit > 0) {
+			$state['limit'] = $route_limit;
+		}
+
+		$requested_store_code = isset($this->request->get['language']) ? (string)$this->request->get['language'] : (isset($this->session->data['language']) ? (string)$this->session->data['language'] : (string)$this->config->get('config_language'));
+		$lang = $route_lang !== '' ? $route_lang : $requested_store_code;
+		$lang = $this->normalizeFeedLang($lang);
+		if ($lang === '') {
+			$lang = $this->normalizeFeedLang((string)$this->config->get('config_language'));
+		}
+
+		$store_language_code = $this->resolveStoreLanguageCode($lang);
+		$this->applyStoreLanguage($store_language_code);
+		if ((string)$state['category'] !== '' && ctype_digit((string)$state['category'])) {
+			$resolved_category_name = $this->resolveCategoryNameById((string)$state['category']);
+			if ($resolved_category_name !== '') {
+				$state['category'] = $resolved_category_name;
+			}
+		}
+
+		$search = $this->fetchFilteredSearchData($state, $lang);
+		if ($search === null) {
+			$search = array(
+				'query' => (string)$state['query'],
+				'total' => 0,
+				'page' => 1,
+				'pages' => 1,
+				'items' => array(),
+				'categories' => array(),
+				'facets' => array(),
+			);
+		}
+
+		$canonical = $this->buildFilterPageUrl($state, $lang);
+		$this->document->addLink($canonical, 'canonical');
+
+		$selected_short = $this->resolveSeoSitemapLanguage($requested_store_code);
+		$current_short = $this->resolveSeoSitemapLanguage($lang);
+		if ($selected_short !== '' && $selected_short !== $current_short) {
+			$alt_url = $this->buildFilterPageUrl($state, $selected_short);
+			$this->document->addLink($alt_url, 'alternate');
+		}
+
+		$is_noindex = $this->isFilterPageNoindex($state, (int)$search['total']);
+		if ($is_noindex) {
+			$this->response->addHeader('X-Robots-Tag: noindex, follow');
+		}
+
+		$this->load->language('product/search');
+
+		$data = array();
+		$data['breadcrumbs'] = array(
+			array(
+				'text' => $this->language->get('text_home'),
+				'href' => $this->url->link('common/home', 'language=' . $store_language_code),
+			),
+			array(
+				'text' => 'E-Filter',
+				'href' => $canonical,
+			),
+		);
+		$data['heading_title'] = 'E-Filter';
+		$data['text_empty'] = $this->language->get('text_empty');
+		$data['text_sort'] = $this->language->get('text_sort');
+		$data['text_limit'] = $this->language->get('text_limit');
+		$data['button_list'] = $this->language->get('button_list');
+		$data['button_grid'] = $this->language->get('button_grid');
+		$data['button_cart'] = $this->language->get('button_cart');
+		$data['button_wishlist'] = $this->language->get('button_wishlist');
+		$data['button_compare'] = $this->language->get('button_compare');
+		$data['text_tax'] = $this->language->get('text_tax');
+
+		$data['search_query'] = (string)$state['query'];
+		$data['selected_category'] = (string)$state['category'];
+		$data['selected_sort'] = (string)$state['sort'];
+		$data['selected_page'] = (int)$state['page'];
+		$data['selected_limit'] = (int)$state['limit'];
+		$data['selected_filters'] = (array)$state['filters'];
+		$data['total'] = (int)$search['total'];
+		$data['pages'] = (int)$search['pages'];
+		$data['is_noindex'] = $is_noindex;
+
+		$data['sorts'] = array(
+			array('value' => '', 'name' => 'Default', 'href' => $this->buildFilterPageUrl(array_merge($state, array('sort' => '')), $lang)),
+			array('value' => 'price_asc', 'name' => 'Price ↑', 'href' => $this->buildFilterPageUrl(array_merge($state, array('sort' => 'price_asc')), $lang)),
+			array('value' => 'price_desc', 'name' => 'Price ↓', 'href' => $this->buildFilterPageUrl(array_merge($state, array('sort' => 'price_desc')), $lang)),
+			array('value' => 'popularity', 'name' => 'Popularity', 'href' => $this->buildFilterPageUrl(array_merge($state, array('sort' => 'popularity')), $lang)),
+		);
+		$data['limits'] = array();
+		foreach (array(20, 25, 50, 75, 100) as $limit_value) {
+			$data['limits'][] = array(
+				'value' => $limit_value,
+				'text' => $limit_value,
+				'href' => $this->buildFilterPageUrl(array_merge($state, array('limit' => $limit_value, 'page' => 1)), $lang),
+			);
+		}
+
+		$data['categories'] = array();
+		foreach ((array)$search['categories'] as $category) {
+			$cid = isset($category['id']) ? (string)$category['id'] : '';
+			if ($cid === '') {
+				continue;
+			}
+			$cname = isset($category['name']) ? trim((string)$category['name']) : '';
+			if ($cname !== '' && ctype_digit($cname)) {
+				$cname = '';
+			}
+			if ($cname === '') {
+				$cname = $this->resolveCategoryNameById($cid);
+			}
+			if ($cname === '') {
+				$cname = $cid;
+			}
+			$data['categories'][] = array(
+				'id' => $cid,
+				'name' => $cname,
+				'count' => isset($category['count']) ? (int)$category['count'] : 0,
+				'active' => ((string)$state['category'] !== '' ? ((string)$state['category'] === $cname) : false) || ($cid === (string)$state['category']),
+				'href' => $this->buildFilterPageUrl(array_merge($state, array('category' => $cname, 'page' => 1)), $lang),
+			);
+		}
+
+		$data['facets'] = array();
+		foreach ((array)$search['facets'] as $facet_name => $facet_values) {
+			if (!is_array($facet_values) || !$facet_values) {
+				continue;
+			}
+			$items = array();
+			foreach ($facet_values as $facet_value) {
+				if (!is_array($facet_value)) {
+					continue;
+				}
+				$value = isset($facet_value['value']) ? (string)$facet_value['value'] : '';
+				if ($value === '') {
+					continue;
+				}
+				$next_state = $state;
+				$current = isset($next_state['filters'][$facet_name]) && is_array($next_state['filters'][$facet_name]) ? $next_state['filters'][$facet_name] : array();
+				$selected = in_array($value, $current, true);
+				if ($selected) {
+					$current = array_values(array_filter($current, function ($v) use ($value) { return (string)$v !== $value; }));
+				} else {
+					$current[] = $value;
+				}
+				if ($current) {
+					$next_state['filters'][$facet_name] = array_values(array_unique($current));
+				} else {
+					unset($next_state['filters'][$facet_name]);
+				}
+				$next_state['page'] = 1;
+
+				$items[] = array(
+					'value' => $value,
+					'count' => isset($facet_value['count']) ? (int)$facet_value['count'] : 0,
+					'active' => $selected,
+					'href' => $this->buildFilterPageUrl($next_state, $lang),
+				);
+			}
+			if ($items) {
+				$data['facets'][] = array(
+					'name' => (string)$facet_name,
+					'items' => $items,
+				);
+			}
+		}
+
+		$product_ids = $this->extractProductIdsFromSearchItems((array)$search['items']);
+		$data['products'] = $this->buildProducts($product_ids, $store_language_code);
+
+		$data['prev_href'] = '';
+		$data['next_href'] = '';
+		if ((int)$state['page'] > 1) {
+			$data['prev_href'] = $this->buildFilterPageUrl(array_merge($state, array('page' => (int)$state['page'] - 1)), $lang);
+		}
+		if ((int)$state['page'] < (int)$search['pages']) {
+			$data['next_href'] = $this->buildFilterPageUrl(array_merge($state, array('page' => (int)$state['page'] + 1)), $lang);
+		}
+
+		$title_parts = array('E-Filter');
+		if ($state['query'] !== '') {
+			$title_parts[] = $state['query'];
+		}
+		if ($state['category'] !== '') {
+			$title_parts[] = 'Category ' . $state['category'];
+		}
+		$this->document->setTitle(implode(' — ', $title_parts));
+
+		$data['column_left'] = $this->load->controller('common/column_left');
+		$data['column_right'] = $this->load->controller('common/column_right');
+		$data['content_top'] = $this->load->controller('common/content_top');
+		$data['content_bottom'] = $this->load->controller('common/content_bottom');
+		$data['header'] = $this->load->controller('common/header');
+		$data['footer'] = $this->load->controller('common/footer');
+
+		$this->response->setOutput($this->load->view('extension/eleads/filter', $data));
+	}
+
 	public function seoPage() {
 		$slug = isset($this->request->get['slug']) ? trim((string)$this->request->get['slug']) : '';
 		$lang = isset($this->request->get['lang']) ? trim((string)$this->request->get['lang']) : '';
@@ -459,6 +679,349 @@ class ControllerExtensionModuleEleads extends Controller {
 		);
 	}
 
+	private function fetchFilteredSearchData($state, $lang) {
+		$api_key = trim((string)$this->config->get('module_eleads_api_key'));
+		$project_id = (int)$this->config->get('module_eleads_project_id');
+		if ($api_key === '') {
+			return null;
+		}
+
+		require_once DIR_SYSTEM . 'library/eleads/api_routes.php';
+		$params = array(
+			'language' => $this->normalizeFeedLang($lang),
+			'page' => max(1, (int)$state['page']),
+			'per_page' => max(1, (int)$state['limit']),
+		);
+		if ($project_id > 0) {
+			$params['project_id'] = (string)$project_id;
+		}
+		if ((string)$state['query'] !== '') {
+			$params['query'] = (string)$state['query'];
+		}
+		if ((string)$state['category'] !== '') {
+			$category_value = (string)$state['category'];
+			$category_id = $this->resolveCategoryIdByName($category_value);
+			$params['category'] = $category_id !== '' ? $category_id : $category_value;
+		}
+		if ((string)$state['sort'] !== '') {
+			$params['sort'] = (string)$state['sort'];
+		}
+		if (!empty($state['filters'])) {
+			$params['filters'] = json_encode($state['filters']);
+		}
+
+		$url = EleadsApiRoutes::SEARCH_FILTERS . '?' . http_build_query($params);
+		$ch = curl_init();
+		if ($ch === false) {
+			return null;
+		}
+		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_HTTPGET, true);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+			'Authorization: Bearer ' . $api_key,
+			'Accept: application/json',
+		));
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 4);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+		$response = curl_exec($ch);
+		if ($response === false) {
+			curl_close($ch);
+			return null;
+		}
+		$http_code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		curl_close($ch);
+		if ($http_code < 200 || $http_code >= 300) {
+			return null;
+		}
+
+		$data = json_decode($response, true);
+		if (!is_array($data) || !isset($data['results']) || !is_array($data['results'])) {
+			return null;
+		}
+
+		$items = array();
+		if (isset($data['results']['items']) && is_array($data['results']['items'])) {
+			$items = $data['results']['items'];
+		}
+
+		return array(
+			'query' => isset($data['query']) ? (string)$data['query'] : '',
+			'total' => isset($data['total']) ? (int)$data['total'] : 0,
+			'page' => isset($data['page']) ? (int)$data['page'] : 1,
+			'pages' => isset($data['pages']) ? (int)$data['pages'] : 1,
+			'items' => $items,
+			'categories' => isset($data['results']['categories']) && is_array($data['results']['categories']) ? $data['results']['categories'] : array(),
+			'facets' => isset($data['facets']) && is_array($data['facets']) ? $data['facets'] : array(),
+		);
+	}
+
+	private function parseFilterStateFromPath($path) {
+		$state = array(
+			'query' => '',
+			'category' => '',
+			'sort' => '',
+			'page' => 1,
+			'limit' => 20,
+			'filters' => array(),
+		);
+		$path = trim((string)$path, '/');
+		if ($path === '') {
+			return $state;
+		}
+
+		$parts = explode('/', $path);
+		foreach ($parts as $idx => $part) {
+			if (strpos($part, 'c-') === 0) {
+				$state['category'] = rawurldecode(substr($part, 2));
+				continue;
+			}
+			if (strpos($part, 's-') === 0) {
+				$sort = rawurldecode(substr($part, 2));
+				if (in_array($sort, array('price_asc', 'price_desc', 'popularity'), true)) {
+					$state['sort'] = $sort;
+				}
+				continue;
+			}
+			if (strpos($part, 'p-') === 0) {
+				$page = (int)substr($part, 2);
+				$state['page'] = $page > 0 ? $page : 1;
+				continue;
+			}
+			if (strpos($part, 'l-') === 0) {
+				$limit = (int)substr($part, 2);
+				$state['limit'] = $limit > 0 ? $limit : 20;
+				continue;
+			}
+			if (strpos($part, 'f-') === 0 && strpos($part, '~') !== false) {
+				$raw = substr($part, 2);
+				$pair = explode('~', $raw, 2);
+				if (count($pair) === 2) {
+					$enc_name = strtr($pair[0], '-_', '+/');
+					$enc_name .= str_repeat('=', (4 - strlen($enc_name) % 4) % 4);
+					$enc_value = strtr($pair[1], '-_', '+/');
+					$enc_value .= str_repeat('=', (4 - strlen($enc_value) % 4) % 4);
+					$name = base64_decode($enc_name, true);
+					$value = base64_decode($enc_value, true);
+					$name = $name === false ? '' : trim((string)$name);
+					$value = $value === false ? '' : trim((string)$value);
+					if ($name !== '' && $value !== '') {
+						if (!isset($state['filters'][$name]) || !is_array($state['filters'][$name])) {
+							$state['filters'][$name] = array();
+						}
+						$state['filters'][$name][] = $value;
+					}
+				}
+				continue;
+			}
+			if (strpos($part, 'f-') === 0) {
+				$encoded = substr($part, 2);
+				$json = base64_decode(strtr($encoded, '-_', '+/'), true);
+				if ($json === false) {
+					continue;
+				}
+				$filters = json_decode($json, true);
+				if (!is_array($filters)) {
+					continue;
+				}
+				$normalized = array();
+				foreach ($filters as $key => $values) {
+					$key = trim((string)$key);
+					if ($key === '' || !is_array($values)) {
+						continue;
+					}
+					$row = array();
+					foreach ($values as $value) {
+						$value = trim((string)$value);
+						if ($value !== '') {
+							$row[] = $value;
+						}
+					}
+					if ($row) {
+						$normalized[$key] = array_values(array_unique($row));
+					}
+				}
+				$state['filters'] = $normalized;
+				continue;
+			}
+
+			if ($part !== '' && strpos($part, '-') !== false) {
+				if ($idx === 0 && $state['category'] === '') {
+					$candidate = trim(rawurldecode(str_replace('_', ' ', $part)));
+					if ($candidate !== '' && $this->resolveCategoryIdByName($candidate) !== '') {
+						$state['category'] = $candidate;
+						continue;
+					}
+				}
+				$dash_pos = strpos($part, '-');
+				$attr = $dash_pos === false ? '' : trim(rawurldecode(str_replace('_', ' ', substr($part, 0, $dash_pos))));
+				$value = $dash_pos === false ? '' : trim(rawurldecode(str_replace('_', ' ', substr($part, $dash_pos + 1))));
+				if ($attr !== '' && $value !== '') {
+					if (!isset($state['filters'][$attr]) || !is_array($state['filters'][$attr])) {
+						$state['filters'][$attr] = array();
+					}
+					$state['filters'][$attr][] = $value;
+					continue;
+				}
+			}
+
+			if ($state['category'] === '' && $part !== '') {
+				$state['category'] = trim(rawurldecode(str_replace('_', ' ', $part)));
+			}
+		}
+
+		if (!empty($state['filters'])) {
+			foreach ($state['filters'] as $name => $values) {
+				$state['filters'][$name] = array_values(array_unique(array_map('strval', (array)$values)));
+			}
+		}
+
+		return $state;
+	}
+
+	private function buildFilterPageUrl($state, $lang) {
+		$base = $this->getSeoBaseUrl();
+		$lang = $this->resolveSeoSitemapLanguage($lang);
+		$parts = array();
+		if (!empty($state['category'])) {
+			$parts[] = str_replace('%20', '_', rawurlencode((string)$state['category']));
+		}
+		if (!empty($state['filters']) && is_array($state['filters'])) {
+			$filters = $state['filters'];
+			ksort($filters);
+			foreach ($filters as $name => $values) {
+				$name = trim((string)$name);
+				if ($name === '' || !is_array($values)) {
+					continue;
+				}
+				$vals = array_values(array_unique(array_map('strval', $values)));
+				sort($vals);
+				foreach ($vals as $value) {
+					$value = trim((string)$value);
+					if ($value === '') {
+						continue;
+					}
+					$name_part = str_replace('%20', '_', rawurlencode($name));
+					$value_part = str_replace('%20', '_', rawurlencode($value));
+					$parts[] = $name_part . '-' . $value_part;
+				}
+			}
+		}
+		$tail = $parts ? '/' . implode('/', $parts) : '';
+		$url = $base . '/' . rawurlencode($lang) . '/e-filter' . $tail;
+		$query = array();
+		if (!empty($state['query'])) {
+			$query['q'] = (string)$state['query'];
+		}
+		if (!empty($state['sort'])) {
+			$query['sort'] = (string)$state['sort'];
+		}
+		$page = isset($state['page']) ? (int)$state['page'] : 1;
+		if ($page > 1) {
+			$query['page'] = $page;
+		}
+		$limit = isset($state['limit']) ? (int)$state['limit'] : 20;
+		if ($limit > 0 && $limit !== 20) {
+			$query['limit'] = $limit;
+		}
+		if ($query) {
+			$url .= '?' . http_build_query($query);
+		}
+		return $url;
+	}
+
+	private function isFilterPageNoindex($state, $total) {
+		$filters = isset($state['filters']) && is_array($state['filters']) ? $state['filters'] : array();
+		$filter_depth = count($filters);
+		$path_depth = $filter_depth + (!empty($state['category']) ? 1 : 0);
+
+		$max_depth = (int)$this->config->get('module_eleads_filter_max_index_depth');
+		if ($max_depth <= 0) {
+			$max_depth = 2;
+		}
+		if ($path_depth > $max_depth) {
+			return true;
+		}
+		if ($filter_depth <= 1) {
+			return false;
+		}
+
+		$whitelist = $this->resolveWhitelistAttributeNames((array)$this->config->get('module_eleads_filter_whitelist_attributes'));
+		if (!$whitelist) {
+			return true;
+		}
+		foreach (array_keys($filters) as $key) {
+			$key_lc = function_exists('mb_strtolower') ? mb_strtolower((string)$key) : strtolower((string)$key);
+			if (!isset($whitelist[$key_lc])) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private function resolveWhitelistAttributeNames($attribute_ids) {
+		$names = array();
+		$language_id = (int)$this->config->get('config_language_id');
+		foreach ((array)$attribute_ids as $attribute_id) {
+			$aid = (int)$attribute_id;
+			if ($aid <= 0) {
+				continue;
+			}
+			$query = $this->db->query("SELECT name FROM " . DB_PREFIX . "attribute_description WHERE attribute_id = '" . $aid . "' AND language_id = '" . $language_id . "' LIMIT 1");
+			if (!empty($query->row['name'])) {
+				$name = function_exists('mb_strtolower') ? mb_strtolower((string)$query->row['name']) : strtolower((string)$query->row['name']);
+				$names[$name] = true;
+			}
+		}
+		return $names;
+	}
+
+	private function resolveCategoryNameById($category_id) {
+		$cid = (int)$category_id;
+		if ($cid <= 0) {
+			return '';
+		}
+		$language_id = (int)$this->config->get('config_language_id');
+		if ($language_id > 0) {
+			$query = $this->db->query("SELECT name FROM " . DB_PREFIX . "category_description WHERE category_id = '" . $cid . "' AND language_id = '" . $language_id . "' LIMIT 1");
+			if (!empty($query->row['name'])) {
+				return trim(html_entity_decode((string)$query->row['name'], ENT_QUOTES, 'UTF-8'));
+			}
+		}
+		$query = $this->db->query("SELECT name FROM " . DB_PREFIX . "category_description WHERE category_id = '" . $cid . "' ORDER BY language_id ASC LIMIT 1");
+		return !empty($query->row['name']) ? trim(html_entity_decode((string)$query->row['name'], ENT_QUOTES, 'UTF-8')) : '';
+	}
+
+	private function resolveCategoryIdByName($category_name) {
+		$name = trim(str_replace('_', ' ', (string)$category_name));
+		if ($name === '') {
+			return '';
+		}
+		if (ctype_digit($name)) {
+			return $name;
+		}
+		$language_id = (int)$this->config->get('config_language_id');
+		$norm_target = $this->normalizeCategoryText($name);
+		$sql = "SELECT category_id, name FROM " . DB_PREFIX . "category_description";
+		if ($language_id > 0) {
+			$sql .= " WHERE language_id = '" . $language_id . "'";
+		}
+		$query = $this->db->query($sql);
+		foreach ((array)$query->rows as $row) {
+			if ($this->normalizeCategoryText((string)$row['name']) === $norm_target) {
+				return (string)(int)$row['category_id'];
+			}
+		}
+		return '';
+	}
+
+	private function normalizeCategoryText($text) {
+		$text = html_entity_decode((string)$text, ENT_QUOTES, 'UTF-8');
+		$text = trim(str_replace('_', ' ', $text));
+		return function_exists('mb_strtolower') ? mb_strtolower($text) : strtolower($text);
+	}
+
 	private function normalizeProductIds($product_ids) {
 		$ids = array();
 		foreach ((array)$product_ids as $value) {
@@ -470,7 +1033,28 @@ class ControllerExtensionModuleEleads extends Controller {
 		return array_values(array_unique($ids));
 	}
 
+	private function extractProductIdsFromSearchItems($items) {
+		$ids = array();
+		foreach ((array)$items as $item) {
+			if (!is_array($item)) {
+				continue;
+			}
+			$id = 0;
+			if (isset($item['id'])) {
+				$id = (int)$item['id'];
+			} elseif (isset($item['offer_id'])) {
+				$id = (int)$item['offer_id'];
+			}
+			if ($id > 0) {
+				$ids[] = $id;
+			}
+		}
+		return array_values(array_unique($ids));
+	}
+
 	private function buildProducts($product_ids, $store_language_code) {
+		$this->load->model('catalog/product');
+		$this->load->model('tool/image');
 		$products = array();
 		$size = $this->getProductImageSize();
 		$description_limit = $this->getProductDescriptionLength();
