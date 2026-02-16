@@ -1,0 +1,46 @@
+<aside id="column-left" class="col-sm-3 hidden-xs">
+  <style>
+    .eleads-filter-check {
+      margin: 0;
+      font-weight: 400;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .eleads-filter-check input[type="checkbox"] {
+      margin: 0;
+      cursor: pointer;
+    }
+  </style>
+
+  <div class="list-group">
+    <a class="list-group-item active">Categories</a>
+    <a href="{{ category_reset_href }}" class="list-group-item {% if not selected_category %}active{% endif %}">
+      All categories
+    </a>
+    {% for category in categories %}
+      <a href="{{ category.href }}" class="list-group-item {% if category.active %}active{% endif %}">
+        {{ category.name }} ({{ category.count }})
+      </a>
+    {% endfor %}
+  </div>
+
+  {% for facet in facets %}
+    <div class="list-group">
+      <a class="list-group-item active">{{ facet.name }}</a>
+      {% for item in facet.items %}
+        <div class="list-group-item {% if item.active %}active{% endif %}">
+          <label class="eleads-filter-check">
+            <input
+              type="checkbox"
+              {% if item.active %}checked="checked"{% endif %}
+              onclick="window.location.href='{{ item.href|e('js') }}';"
+            />
+            <span>{{ item.value }} ({{ item.count }})</span>
+          </label>
+        </div>
+      {% endfor %}
+    </div>
+  {% endfor %}
+</aside>

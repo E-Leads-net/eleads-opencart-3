@@ -441,7 +441,13 @@ class ControllerExtensionModuleEleads extends Controller {
 		$data['filter_short_description'] = isset($seo_content['short_description']) ? $seo_content['short_description'] : '';
 		$data['filter_description'] = isset($seo_content['description']) ? $seo_content['description'] : '';
 
-		$data['column_left'] = $this->load->controller('common/column_left');
+		$sidebar_data = array(
+			'category_reset_href' => $data['category_reset_href'],
+			'selected_category' => $data['selected_category'],
+			'categories' => $data['categories'],
+			'facets' => $data['facets'],
+		);
+		$data['column_left'] = $this->load->view('extension/eleads/filter_sidebar', $sidebar_data);
 		$data['column_right'] = $this->load->controller('common/column_right');
 		$data['content_top'] = $this->load->controller('common/content_top');
 		$data['content_bottom'] = $this->load->controller('common/content_bottom');
@@ -450,8 +456,53 @@ class ControllerExtensionModuleEleads extends Controller {
 			$data['header'] = str_replace('</head>', "\n<meta name=\"robots\" content=\"noindex,follow\" />\n</head>", $data['header']);
 		}
 		$data['footer'] = $this->load->controller('common/footer');
+		$data['thumb'] = '';
+		$data['categories'] = array();
+		$data['text_refine'] = '';
+		$data['compare'] = $this->url->link('product/compare', 'language=' . $store_language_code);
+		$data['text_compare'] = sprintf($this->language->get('text_compare'), (isset($this->session->data['compare']) ? count($this->session->data['compare']) : 0));
+		$data['continue'] = $this->url->link('common/home', 'language=' . $store_language_code);
+		$data['button_continue'] = $this->language->get('button_continue');
+		$data['sort'] = '';
+		$data['order'] = '';
+		if ((string)$state['sort'] === 'price_asc') {
+			$data['sort'] = 'p.price';
+			$data['order'] = 'ASC';
+		} elseif ((string)$state['sort'] === 'price_desc') {
+			$data['sort'] = 'p.price';
+			$data['order'] = 'DESC';
+		} elseif ((string)$state['sort'] === 'popularity') {
+			$data['sort'] = 'p.viewed';
+			$data['order'] = 'DESC';
+		} else {
+			$data['sort'] = 'p.sort_order';
+			$data['order'] = 'ASC';
+		}
+		$data['sorts'] = array(
+			array('value' => 'p.sort_order-ASC', 'text' => 'Default', 'href' => $this->buildFilterPageUrl(array_merge($state, array('sort' => '')), $lang)),
+			array('value' => 'p.price-ASC', 'text' => 'Price ↑', 'href' => $this->buildFilterPageUrl(array_merge($state, array('sort' => 'price_asc')), $lang)),
+			array('value' => 'p.price-DESC', 'text' => 'Price ↓', 'href' => $this->buildFilterPageUrl(array_merge($state, array('sort' => 'price_desc')), $lang)),
+			array('value' => 'p.viewed-DESC', 'text' => 'Popularity', 'href' => $this->buildFilterPageUrl(array_merge($state, array('sort' => 'popularity')), $lang)),
+		);
+		$data['limit'] = (int)$state['limit'];
+		$data['description'] = trim((string)$data['filter_short_description'] . "\n" . (string)$data['filter_description']);
 
-		$this->response->setOutput($this->load->view('extension/eleads/filter', $data));
+		$pagination = new Pagination();
+		$pagination->total = (int)$search['total'];
+		$pagination->page = max(1, (int)$state['page']);
+		$pagination->limit = max(1, (int)$state['limit']);
+		$pagination->url = $this->buildFilterPageUrl(array_merge($state, array('page' => '{page}')), $lang);
+		$data['pagination'] = $pagination->render();
+
+		if ((int)$search['total'] > 0) {
+			$start = (((int)$state['page'] - 1) * (int)$state['limit']) + 1;
+			$end = min((int)$search['total'], (int)$state['page'] * (int)$state['limit']);
+			$data['results'] = sprintf($this->language->get('text_pagination'), $start, $end, (int)$search['total'], max(1, (int)$search['pages']));
+		} else {
+			$data['results'] = sprintf($this->language->get('text_pagination'), 0, 0, 0, 1);
+		}
+
+		$this->response->setOutput($this->load->view('product/category', $data));
 	}
 
 	public function seoPage() {
