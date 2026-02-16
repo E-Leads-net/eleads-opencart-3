@@ -1072,9 +1072,6 @@ class ControllerExtensionModuleEleads extends Controller {
 		$category_id = '';
 		$category_name = '';
 		$current_depth = (int)count((array)$state['filters']);
-		if ($current_depth < 1) {
-			$current_depth = 1;
-		}
 
 		if (!empty($state['category'])) {
 			$category_name = (string)$state['category'];
@@ -1092,8 +1089,8 @@ class ControllerExtensionModuleEleads extends Controller {
 				continue;
 			}
 			$row_depth = isset($row['depth']) ? (int)$row['depth'] : 1;
-			if ($row_depth < 1) {
-				$row_depth = 1;
+			if ($row_depth < 0) {
+				$row_depth = 0;
 			}
 			if ($row_depth !== $current_depth) {
 				continue;

@@ -435,11 +435,11 @@ class ControllerExtensionModuleEleads extends Controller {
 					'translations' => array(),
 				);
 				$max_depth = (int)$this->config->get('module_eleads_filter_max_index_depth');
-				if ($max_depth < 1) {
-					$max_depth = 1;
+				if ($max_depth < 0) {
+					$max_depth = 0;
 				}
-				if ($normalized['depth'] < 1) {
-					$normalized['depth'] = 1;
+				if ($normalized['depth'] < 0) {
+					$normalized['depth'] = 0;
 				}
 				if ($normalized['depth'] > $max_depth) {
 					$normalized['depth'] = $max_depth;

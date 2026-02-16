@@ -386,8 +386,8 @@
                                 <div class="eleads-template-field">
                                   <label>{{ entry_filter_template_depth }}</label>
                                   <select name="module_eleads_filter_templates[{{ loop.index0 }}][depth]" class="form-control eleads-template-depth">
-                                    {% for d in 1..module_eleads_filter_max_index_depth %}
-                                      <option value="{{ d }}" {% if (row.depth|default(1)) == d %}selected{% endif %}>{{ d }}</option>
+                                    {% for d in 0..module_eleads_filter_max_index_depth %}
+                                      <option value="{{ d }}" {% if (row.depth|default(0)) == d %}selected{% endif %}>{{ d }}</option>
                                     {% endfor %}
                                   </select>
                                 </div>
@@ -678,9 +678,9 @@
         }
         function templateDepthOptions(selected) {
           var maxDepth = parseInt(depthInput && depthInput.value ? depthInput.value : '1', 10);
-          if (isNaN(maxDepth) || maxDepth < 1) maxDepth = 1;
+          if (isNaN(maxDepth) || maxDepth < 0) maxDepth = 0;
           var html = '';
-          for (var d = 1; d <= maxDepth; d++) {
+          for (var d = 0; d <= maxDepth; d++) {
             html += '<option value="' + d + '"' + (selected === d ? ' selected' : '') + '>' + d + '</option>';
           }
           return html;
@@ -730,7 +730,7 @@
                 '<button type="button" class="btn btn-danger btn-sm eleads-template-remove">{{ button_remove_template|e('js') }}</button>' +
               '</div>' +
               '<div class="eleads-template-field"><label>{{ entry_filter_template_category|e('js') }}</label><select name="module_eleads_filter_templates[' + index + '][category_id]" class="form-control">' + templateCategoryOptions(0) + '</select></div>' +
-              '<div class="eleads-template-field"><label>{{ entry_filter_template_depth|e('js') }}</label><select name="module_eleads_filter_templates[' + index + '][depth]" class="form-control eleads-template-depth">' + templateDepthOptions(1) + '</select></div>' +
+              '<div class="eleads-template-field"><label>{{ entry_filter_template_depth|e('js') }}</label><select name="module_eleads_filter_templates[' + index + '][depth]" class="form-control eleads-template-depth">' + templateDepthOptions(0) + '</select></div>' +
               '<ul class="nav nav-tabs eleads-lang-tabs">' +
                 {% for lang in languages %}
                 '<li{% if loop.first %} class="active"{% endif %}><a href="#eleads-template-new-' + index + '-{{ loop.index0 }}" data-toggle="tab">{{ lang.code|e('js') }}</a></li>' +
@@ -773,11 +773,11 @@
         function refreshDepthSelectors() {
           if (!templateList) return;
           var maxDepth = parseInt(depthInput && depthInput.value ? depthInput.value : '1', 10);
-          if (isNaN(maxDepth) || maxDepth < 1) maxDepth = 1;
+          if (isNaN(maxDepth) || maxDepth < 0) maxDepth = 0;
           var selects = templateList.querySelectorAll('.eleads-template-depth');
           Array.prototype.forEach.call(selects, function(sel) {
-            var current = parseInt(sel.value || '1', 10);
-            if (isNaN(current) || current < 1) current = 1;
+            var current = parseInt(sel.value || '0', 10);
+            if (isNaN(current) || current < 0) current = 0;
             if (current > maxDepth) current = maxDepth;
             sel.innerHTML = templateDepthOptions(current);
           });
