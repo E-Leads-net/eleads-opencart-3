@@ -66,6 +66,10 @@
       #content .eleads-template-card-item {border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; background: #fff;}
       #content .eleads-template-card-head {display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;}
       #content .eleads-template-card-title {font-weight: 600; color: #334155;}
+      #content .eleads-template-card-meta {font-size: 12px; color: #64748b; margin-left: 8px;}
+      #content .eleads-template-card-controls {display: flex; gap: 8px; align-items: center;}
+      #content .eleads-template-toggle {min-width: 34px; padding: 4px 8px;}
+      #content .eleads-template-card-item.is-collapsed .eleads-template-card-body {display: none;}
       #content .eleads-template-field {margin-bottom: 10px;}
       #content .eleads-template-field:last-child {margin-bottom: 0;}
       #content .eleads-template-field label {font-weight: 600; font-size: 12px; margin-bottom: 4px; color: #475569;}
@@ -370,13 +374,21 @@
                             <div class="eleads-template-help-title">Available Variables</div>
                             <div id="eleads-template-vars-help-text">{{ help_filter_template_vars }}</div>
                           </div>
+                          <div class="btn-group btn-group-sm eleads-btn-group" role="group" style="margin-bottom:8px;">
+                            <button type="button" class="btn btn-default" id="eleads-template-expand-all">Expand all</button>
+                            <button type="button" class="btn btn-default" id="eleads-template-collapse-all">Collapse all</button>
+                          </div>
                           <div class="eleads-template-list" id="eleads-filter-templates-list">
                             {% for row in module_eleads_filter_templates %}
                               <div class="eleads-template-card-item">
                                 <div class="eleads-template-card-head">
-                                  <div class="eleads-template-card-title">Template #<span class="eleads-template-card-title-num">{{ loop.index }}</span></div>
-                                  <button type="button" class="btn btn-danger btn-sm eleads-template-remove">{{ button_remove_template }}</button>
+                                  <div class="eleads-template-card-title">Template #<span class="eleads-template-card-title-num">{{ loop.index }}</span><span class="eleads-template-card-meta"></span></div>
+                                  <div class="eleads-template-card-controls">
+                                    <button type="button" class="btn btn-default btn-sm eleads-template-toggle">−</button>
+                                    <button type="button" class="btn btn-danger btn-sm eleads-template-remove">{{ button_remove_template }}</button>
+                                  </div>
                                 </div>
+                                <div class="eleads-template-card-body">
                                 <div class="row">
                                   <div class="col-sm-8">
                                     <div class="eleads-template-field">
@@ -446,12 +458,13 @@
                                           <div class="eleads-template-field">
                                             <label>{{ entry_filter_template_description }}</label>
                                             <textarea name="module_eleads_filter_templates[{{ loop.parent.index0 }}][translations][{{ lang.code }}][description]" rows="5" class="form-control">{{ t.description|default('') }}</textarea>
-                                          </div>
-                                        </div>
-                                      </div>
                                     </div>
-                                  {% endfor %}
+                                  </div>
                                 </div>
+                                </div>
+                              </div>
+                            {% endfor %}
+                          </div>
                               </div>
                             {% endfor %}
                           </div>
@@ -675,6 +688,8 @@
 
         var templateList = document.getElementById('eleads-filter-templates-list');
         var templateAddBtn = document.getElementById('eleads-filter-template-add');
+        var templateExpandAllBtn = document.getElementById('eleads-template-expand-all');
+        var templateCollapseAllBtn = document.getElementById('eleads-template-collapse-all');
         var templateHintText = document.getElementById('eleads-template-vars-help-text');
         var depthInput = document.querySelector('input[name="module_eleads_filter_max_index_depth"]');
         var templateNextIndex = templateList ? templateList.querySelectorAll('.eleads-template-card-item').length : 0;
@@ -728,6 +743,63 @@
             };
           });
         }
+        function updateTemplateMeta(card) {
+          if (!card) return;
+          var meta = card.querySelector('.eleads-template-card-meta');
+          var cat = card.querySelector('select[name*="[category_id]"]');
+          var dep = card.querySelector('select[name*="[depth]"]');
+          if (!meta || !cat || !dep) return;
+          var catText = cat.options[cat.selectedIndex] ? cat.options[cat.selectedIndex].text : '{{ text_all_categories|e('js') }}';
+          var depthText = dep.value || '0';
+          meta.textContent = ' · ' + catText + ' · depth ' + depthText;
+        }
+        function bindTemplateMetaChange() {
+          if (!templateList) return;
+          var cards = templateList.querySelectorAll('.eleads-template-card-item');
+          Array.prototype.forEach.call(cards, function(card) {
+            updateTemplateMeta(card);
+            var cat = card.querySelector('select[name*="[category_id]"]');
+            var dep = card.querySelector('select[name*="[depth]"]');
+            if (cat) cat.onchange = function() { updateTemplateMeta(card); };
+            if (dep) dep.onchange = function() { updateTemplateMeta(card); };
+          });
+        }
+        function bindTemplateToggle() {
+          if (!templateList) return;
+          var buttons = templateList.querySelectorAll('.eleads-template-toggle');
+          Array.prototype.forEach.call(buttons, function(btn) {
+            btn.onclick = function() {
+              var card = btn.closest('.eleads-template-card-item');
+              if (!card) return;
+              card.classList.toggle('is-collapsed');
+              btn.textContent = card.classList.contains('is-collapsed') ? '+' : '−';
+            };
+          });
+        }
+        function setAllTemplateCardsCollapsed(collapse) {
+          if (!templateList) return;
+          var cards = templateList.querySelectorAll('.eleads-template-card-item');
+          Array.prototype.forEach.call(cards, function(card) {
+            if (collapse) {
+              card.classList.add('is-collapsed');
+            } else {
+              card.classList.remove('is-collapsed');
+            }
+            var btn = card.querySelector('.eleads-template-toggle');
+            if (btn) btn.textContent = collapse ? '+' : '−';
+          });
+        }
+        function applyInitialTemplateCollapse() {
+          if (!templateList) return;
+          var cards = templateList.querySelectorAll('.eleads-template-card-item');
+          if (cards.length <= 2) return;
+          Array.prototype.forEach.call(cards, function(card, idx) {
+            if (idx === 0) return;
+            card.classList.add('is-collapsed');
+            var btn = card.querySelector('.eleads-template-toggle');
+            if (btn) btn.textContent = '+';
+          });
+        }
         if (templateAddBtn && templateList) {
           templateAddBtn.addEventListener('click', function() {
             var index = templateNextIndex++;
@@ -735,9 +807,13 @@
             card.className = 'eleads-template-card-item';
             card.innerHTML =
               '<div class="eleads-template-card-head">' +
-                '<div class="eleads-template-card-title">Template #<span class="eleads-template-card-title-num"></span></div>' +
-                '<button type="button" class="btn btn-danger btn-sm eleads-template-remove">{{ button_remove_template|e('js') }}</button>' +
+                '<div class="eleads-template-card-title">Template #<span class="eleads-template-card-title-num"></span><span class="eleads-template-card-meta"></span></div>' +
+                '<div class="eleads-template-card-controls">' +
+                  '<button type="button" class="btn btn-default btn-sm eleads-template-toggle">−</button>' +
+                  '<button type="button" class="btn btn-danger btn-sm eleads-template-remove">{{ button_remove_template|e('js') }}</button>' +
+                '</div>' +
               '</div>' +
+              '<div class="eleads-template-card-body">' +
               '<div class="row">' +
                 '<div class="col-sm-8">' +
                   '<div class="eleads-template-field"><label>{{ entry_filter_template_category|e('js') }}</label><select name="module_eleads_filter_templates[' + index + '][category_id]" class="form-control">' + templateCategoryOptions(0) + '</select></div>' +
@@ -776,14 +852,22 @@
                   '</div>' +
                 '</div>' +
                 {% endfor %}
+              '</div>' +
               '</div>';
             templateList.appendChild(card);
             bindTemplateRemove();
+            bindTemplateToggle();
             refreshTemplateTitles();
+            bindTemplateMetaChange();
           });
           bindTemplateRemove();
+          bindTemplateToggle();
           refreshTemplateTitles();
+          bindTemplateMetaChange();
+          applyInitialTemplateCollapse();
         }
+        if (templateExpandAllBtn) templateExpandAllBtn.addEventListener('click', function() { setAllTemplateCardsCollapsed(false); });
+        if (templateCollapseAllBtn) templateCollapseAllBtn.addEventListener('click', function() { setAllTemplateCardsCollapsed(true); });
         renderTemplateHint();
         function refreshDepthSelectors() {
           if (!templateList) return;
