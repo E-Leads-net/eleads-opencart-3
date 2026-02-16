@@ -37,6 +37,7 @@
       #content .eleads-tabs .nav-tabs > li.active > a:hover {background: #0f172a; color: #fff;}
       #content .eleads-section {margin-bottom: 16px;}
       #content .eleads-tree {border: 1px solid #e5e7eb; border-radius: 10px; padding: 8px; max-height: 360px; overflow: auto; background: #fff;}
+      #content .eleads-whitelist-tree {max-height: 240px;}
       #content .eleads-tree-list {list-style: none; margin: 0; padding-left: 0;}
       #content .eleads-tree-item {display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 4px 2px;}
       #content .eleads-tree-children {width: 100%; margin-left: 22px; padding-left: 10px; border-left: 1px dashed #e5e7eb; display: none;}
@@ -348,7 +349,7 @@
                             <button type="button" class="btn btn-default" id="eleads-whitelist-attributes-all">Select all</button>
                             <button type="button" class="btn btn-default" id="eleads-whitelist-attributes-none">Select none</button>
                           </div>
-                          <div class="eleads-tree">
+                          <div class="eleads-tree eleads-whitelist-tree">
                             <ul class="eleads-tree-list eleads-whitelist-attributes-list">
                               {% for attribute in whitelist_attributes %}
                                 <li class="eleads-tree-item">
@@ -380,6 +381,7 @@
                           </div>
                           <div class="eleads-template-list" id="eleads-filter-templates-list">
                             {% for row in module_eleads_filter_templates %}
+                              {% set row_idx = loop.index0 %}
                               <div class="eleads-template-card-item">
                                 <div class="eleads-template-card-head">
                                   <div class="eleads-template-card-title">Template #<span class="eleads-template-card-title-num">{{ loop.index }}</span><span class="eleads-template-card-meta"></span></div>
@@ -393,7 +395,7 @@
                                   <div class="col-sm-8">
                                     <div class="eleads-template-field">
                                       <label>{{ entry_filter_template_category }}</label>
-                                      <select name="module_eleads_filter_templates[{{ loop.index0 }}][category_id]" class="form-control">
+                                      <select name="module_eleads_filter_templates[{{ row_idx }}][category_id]" class="form-control">
                                         <option value="0" {% if row.category_id == 0 %}selected{% endif %}>{{ text_all_categories }}</option>
                                         {% for c in filter_template_categories %}
                                           <option value="{{ c.category_id }}" {% if row.category_id == c.category_id %}selected{% endif %}>{{ c.name }}</option>
@@ -404,7 +406,7 @@
                                   <div class="col-sm-4">
                                     <div class="eleads-template-field">
                                       <label>{{ entry_filter_template_depth }}</label>
-                                      <select name="module_eleads_filter_templates[{{ loop.index0 }}][depth]" class="form-control eleads-template-depth">
+                                      <select name="module_eleads_filter_templates[{{ row_idx }}][depth]" class="form-control eleads-template-depth">
                                         {% for d in 0..module_eleads_filter_max_index_depth %}
                                           <option value="{{ d }}" {% if (row.depth|default(0)) == d %}selected{% endif %}>{{ d }}</option>
                                         {% endfor %}
@@ -415,33 +417,33 @@
                                 <ul class="nav nav-tabs eleads-lang-tabs">
                                   {% for lang in languages %}
                                     <li{% if loop.first %} class="active"{% endif %}>
-                                      <a href="#eleads-template-{{ loop.parent.index0 }}-{{ loop.index0 }}" data-toggle="tab">{{ lang.code }}</a>
+                                      <a href="#eleads-template-{{ row_idx }}-{{ loop.index0 }}" data-toggle="tab">{{ lang.code }}</a>
                                     </li>
                                   {% endfor %}
                                 </ul>
                                 <div class="tab-content eleads-lang-content">
                                   {% for lang in languages %}
                                     {% set t = row.translations[lang.code] is defined ? row.translations[lang.code] : {} %}
-                                    <div class="tab-pane{% if loop.first %} active{% endif %}" id="eleads-template-{{ loop.parent.index0 }}-{{ loop.index0 }}">
+                                    <div class="tab-pane{% if loop.first %} active{% endif %}" id="eleads-template-{{ row_idx }}-{{ loop.index0 }}">
                                       <div class="row">
                                         <div class="col-sm-6">
                                           <div class="eleads-template-field">
                                             <label>{{ entry_filter_template_h1 }}</label>
-                                            <input type="text" name="module_eleads_filter_templates[{{ loop.parent.index0 }}][translations][{{ lang.code }}][h1]" value="{{ t.h1|default('') }}" class="form-control" />
+                                            <input type="text" name="module_eleads_filter_templates[{{ row_idx }}][translations][{{ lang.code }}][h1]" value="{{ t.h1|default('') }}" class="form-control" />
                                           </div>
                                           <div class="eleads-template-field">
                                             <label>{{ entry_filter_template_meta_title }}</label>
-                                            <input type="text" name="module_eleads_filter_templates[{{ loop.parent.index0 }}][translations][{{ lang.code }}][meta_title]" value="{{ t.meta_title|default('') }}" class="form-control" />
+                                            <input type="text" name="module_eleads_filter_templates[{{ row_idx }}][translations][{{ lang.code }}][meta_title]" value="{{ t.meta_title|default('') }}" class="form-control" />
                                           </div>
                                         </div>
                                         <div class="col-sm-6">
                                           <div class="eleads-template-field">
                                             <label>{{ entry_filter_template_meta_description }}</label>
-                                            <textarea name="module_eleads_filter_templates[{{ loop.parent.index0 }}][translations][{{ lang.code }}][meta_description]" rows="3" class="form-control">{{ t.meta_description|default('') }}</textarea>
+                                            <textarea name="module_eleads_filter_templates[{{ row_idx }}][translations][{{ lang.code }}][meta_description]" rows="3" class="form-control">{{ t.meta_description|default('') }}</textarea>
                                           </div>
                                           <div class="eleads-template-field">
                                             <label>{{ entry_filter_template_meta_keywords }}</label>
-                                            <textarea name="module_eleads_filter_templates[{{ loop.parent.index0 }}][translations][{{ lang.code }}][meta_keywords]" rows="3" class="form-control">{{ t.meta_keywords|default('') }}</textarea>
+                                            <textarea name="module_eleads_filter_templates[{{ row_idx }}][translations][{{ lang.code }}][meta_keywords]" rows="3" class="form-control">{{ t.meta_keywords|default('') }}</textarea>
                                           </div>
                                         </div>
                                       </div>
@@ -449,7 +451,7 @@
                                         <div class="col-sm-12">
                                           <div class="eleads-template-field">
                                             <label>{{ entry_filter_template_short_description }}</label>
-                                            <textarea name="module_eleads_filter_templates[{{ loop.parent.index0 }}][translations][{{ lang.code }}][short_description]" rows="4" class="form-control">{{ t.short_description|default('') }}</textarea>
+                                            <textarea name="module_eleads_filter_templates[{{ row_idx }}][translations][{{ lang.code }}][short_description]" rows="4" class="form-control">{{ t.short_description|default('') }}</textarea>
                                           </div>
                                         </div>
                                       </div>
@@ -457,7 +459,7 @@
                                         <div class="col-sm-12">
                                           <div class="eleads-template-field">
                                             <label>{{ entry_filter_template_description }}</label>
-                                            <textarea name="module_eleads_filter_templates[{{ loop.parent.index0 }}][translations][{{ lang.code }}][description]" rows="5" class="form-control">{{ t.description|default('') }}</textarea>
+                                            <textarea name="module_eleads_filter_templates[{{ row_idx }}][translations][{{ lang.code }}][description]" rows="5" class="form-control">{{ t.description|default('') }}</textarea>
                                           </div>
                                         </div>
                                       </div>
@@ -465,13 +467,14 @@
                                   {% endfor %}
                                 </div>
                               </div>
+                            </div>
                             {% endfor %}
                           </div>
                           <button type="button" class="btn btn-primary" id="eleads-filter-template-add">{{ button_add_template }}</button>
                         </div>
                       </div>
-                    </div>
-                  </div>
+	                    </div>
+	                  </div>
 	                </div>
 	              </div>
 	            </div>
@@ -579,6 +582,15 @@
 
         function initMainTabs() {
           if (!mainTabRoot) return;
+          var paneOrder = ['tab-export', 'tab-filter', 'tab-seo', 'tab-api', 'tab-update'];
+          Array.prototype.forEach.call(paneOrder, function(id) {
+            var pane = document.getElementById(id);
+            if (!pane) return;
+            if (pane.parentNode !== mainTabRoot) {
+              mainTabRoot.appendChild(pane);
+            }
+          });
+
           var links = document.querySelectorAll('.eleads-tabs .panel-heading .nav-tabs > li > a[data-toggle="tab"]');
           if (!links.length) return;
 
@@ -774,6 +786,7 @@
           var buttons = templateList.querySelectorAll('.eleads-template-remove');
           Array.prototype.forEach.call(buttons, function(btn) {
             btn.onclick = function() {
+              if (!window.confirm('Remove this template?')) return;
               var card = btn.closest('.eleads-template-card-item');
               if (card) card.remove();
               refreshTemplateTitles();
@@ -829,9 +842,7 @@
         function applyInitialTemplateCollapse() {
           if (!templateList) return;
           var cards = templateList.querySelectorAll('.eleads-template-card-item');
-          if (cards.length <= 2) return;
-          Array.prototype.forEach.call(cards, function(card, idx) {
-            if (idx === 0) return;
+          Array.prototype.forEach.call(cards, function(card) {
             card.classList.add('is-collapsed');
             var btn = card.querySelector('.eleads-template-toggle');
             if (btn) btn.textContent = '+';
