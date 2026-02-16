@@ -139,6 +139,7 @@ class ControllerExtensionModuleEleads extends Controller {
 			$data['entry_filter_whitelist_attributes'] = $this->language->get('entry_filter_whitelist_attributes');
 			$data['entry_filter_templates'] = $this->language->get('entry_filter_templates');
 			$data['entry_filter_template_category'] = $this->language->get('entry_filter_template_category');
+			$data['entry_filter_template_depth'] = $this->language->get('entry_filter_template_depth');
 			$data['entry_filter_template_h1'] = $this->language->get('entry_filter_template_h1');
 			$data['entry_filter_template_meta_title'] = $this->language->get('entry_filter_template_meta_title');
 			$data['entry_filter_template_meta_description'] = $this->language->get('entry_filter_template_meta_description');
@@ -430,8 +431,19 @@ class ControllerExtensionModuleEleads extends Controller {
 				}
 				$normalized = array(
 					'category_id' => isset($row['category_id']) ? (int)$row['category_id'] : 0,
+					'depth' => isset($row['depth']) ? (int)$row['depth'] : 1,
 					'translations' => array(),
 				);
+				$max_depth = (int)$this->config->get('module_eleads_filter_max_index_depth');
+				if ($max_depth < 1) {
+					$max_depth = 1;
+				}
+				if ($normalized['depth'] < 1) {
+					$normalized['depth'] = 1;
+				}
+				if ($normalized['depth'] > $max_depth) {
+					$normalized['depth'] = $max_depth;
+				}
 				if (isset($row['translations']) && is_array($row['translations'])) {
 					foreach ($row['translations'] as $lang_code => $lang_data) {
 						$lang_code = trim((string)$lang_code);
