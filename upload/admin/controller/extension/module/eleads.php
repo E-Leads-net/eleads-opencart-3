@@ -1,5 +1,5 @@
 <?php
-require_once DIR_SYSTEM . 'library/eleads/admin_controller_trait.php';
+require_once DIR_SYSTEM . 'library/eleads/eleads_admin_controller_trait.php';
 class ControllerExtensionModuleEleads extends Controller {
 	use EleadsAdminControllerTrait;
 
