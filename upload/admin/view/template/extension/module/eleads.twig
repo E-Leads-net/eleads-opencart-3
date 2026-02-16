@@ -4,6 +4,7 @@
     <div class="container-fluid">
       <div class="pull-right">
         <button type="submit" form="form-eleads" data-toggle="tooltip" title="{{ button_save }}" class="btn btn-primary"><i class="fa fa-save"></i></button>
+        <button type="submit" form="form-eleads" name="save_stay" value="1" data-toggle="tooltip" title="{{ button_save_stay }}" class="btn btn-info"><i class="fa fa-save"></i> {{ button_save_stay }}</button>
         <a href="{{ cancel }}" data-toggle="tooltip" title="{{ button_cancel }}" class="btn btn-default"><i class="fa fa-reply"></i></a>
       </div>
       <h1>{{ heading_title }}</h1>
@@ -277,6 +278,15 @@
                           <select name="module_eleads_filter_pages_enabled" class="form-control">
                             <option value="1" {% if module_eleads_filter_pages_enabled %}selected{% endif %}>{{ text_enabled }}</option>
                             <option value="0" {% if not module_eleads_filter_pages_enabled %}selected{% endif %}>{{ text_disabled }}</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label class="col-sm-2 control-label">{{ entry_filter_render_mode }}</label>
+                        <div class="col-sm-10">
+                          <select name="module_eleads_filter_render_mode" class="form-control">
+                            <option value="theme" {% if module_eleads_filter_render_mode == 'theme' %}selected{% endif %}>{{ text_filter_render_mode_theme }}</option>
+                            <option value="module" {% if module_eleads_filter_render_mode == 'module' %}selected{% endif %}>{{ text_filter_render_mode_module }}</option>
                           </select>
                         </div>
                       </div>

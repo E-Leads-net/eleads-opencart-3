@@ -71,6 +71,9 @@ class ControllerExtensionModuleEleads extends Controller {
 				$settings_current = $this->model_setting_setting->getSetting('module_eleads');
 				$seo_prev = !empty($settings_current['module_eleads_seo_pages_enabled']);
 				$settings_new = array_merge($settings_current, $this->request->post);
+				if (!isset($settings_new['module_eleads_filter_render_mode']) || !in_array((string)$settings_new['module_eleads_filter_render_mode'], array('theme', 'module'), true)) {
+					$settings_new['module_eleads_filter_render_mode'] = 'theme';
+				}
 				$settings_new['module_eleads_filter_templates'] = $this->normalizeFilterTemplates(isset($settings_new['module_eleads_filter_templates']) ? $settings_new['module_eleads_filter_templates'] : array());
 				if (empty($settings_new['module_eleads_api_key'])) {
 					$settings_new['module_eleads_api_key'] = $api_key;
@@ -85,6 +88,9 @@ class ControllerExtensionModuleEleads extends Controller {
 					$this->syncSeoSitemap($seo_new, (string)$settings_new['module_eleads_api_key'], $settings_new);
 				}
 				$this->session->data['success'] = $this->language->get('text_success');
+				if (isset($this->request->post['save_stay'])) {
+					$this->response->redirect($this->url->link('extension/module/eleads', 'user_token=' . $this->session->data['user_token'], true));
+				}
 				$this->response->redirect($this->url->link('marketplace/extension', 'user_token=' . $this->session->data['user_token'] . '&type=module', true));
 			}
 		}
@@ -121,6 +127,7 @@ class ControllerExtensionModuleEleads extends Controller {
 		$data['text_enabled'] = $this->language->get('text_enabled');
 		$data['text_disabled'] = $this->language->get('text_disabled');
 		$data['button_save'] = $this->language->get('button_save');
+		$data['button_save_stay'] = $this->language->get('button_save_stay');
 		$data['button_cancel'] = $this->language->get('button_cancel');
 		$data['tab_export'] = $this->language->get('tab_export');
 		$data['tab_filter'] = $this->language->get('tab_filter');
@@ -136,6 +143,9 @@ class ControllerExtensionModuleEleads extends Controller {
 		$data['entry_filter_attributes_toggle'] = $this->language->get('entry_filter_attributes_toggle');
 		$data['entry_filter_option_values_toggle'] = $this->language->get('entry_filter_option_values_toggle');
 		$data['entry_filter_pages_enabled'] = $this->language->get('entry_filter_pages_enabled');
+		$data['entry_filter_render_mode'] = $this->language->get('entry_filter_render_mode');
+		$data['text_filter_render_mode_theme'] = $this->language->get('text_filter_render_mode_theme');
+		$data['text_filter_render_mode_module'] = $this->language->get('text_filter_render_mode_module');
 		$data['entry_filter_max_index_depth'] = $this->language->get('entry_filter_max_index_depth');
 		$data['entry_filter_min_products_noindex'] = $this->language->get('entry_filter_min_products_noindex');
 			$data['entry_filter_min_products_recommended'] = $this->language->get('entry_filter_min_products_recommended');
@@ -177,6 +187,9 @@ class ControllerExtensionModuleEleads extends Controller {
 
 		$settings = $this->model_setting_setting->getSetting('module_eleads');
 			$data = array_merge($data, $this->prepareSettingsData($settings));
+			if (!in_array((string)$data['module_eleads_filter_render_mode'], array('theme', 'module'), true)) {
+				$data['module_eleads_filter_render_mode'] = 'theme';
+			}
 			$data['module_eleads_filter_templates'] = $this->normalizeFilterTemplates(isset($data['module_eleads_filter_templates']) ? $data['module_eleads_filter_templates'] : array());
 			if (!$seo_available) {
 				$data['module_eleads_seo_pages_enabled'] = 0;

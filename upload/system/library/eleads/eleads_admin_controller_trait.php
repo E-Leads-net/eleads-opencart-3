@@ -40,6 +40,7 @@ trait EleadsAdminControllerTrait {
 			'module_eleads_filter_attributes_enabled' => 0,
 			'module_eleads_filter_option_values_enabled' => 0,
 			'module_eleads_filter_pages_enabled' => 0,
+			'module_eleads_filter_render_mode' => 'theme',
 			'module_eleads_filter_max_index_depth' => 2,
 			'module_eleads_filter_min_products_noindex' => 5,
 			'module_eleads_filter_min_products_recommended' => 10,

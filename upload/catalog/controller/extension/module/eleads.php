@@ -441,13 +441,22 @@ class ControllerExtensionModuleEleads extends Controller {
 		$data['filter_short_description'] = isset($seo_content['short_description']) ? $seo_content['short_description'] : '';
 		$data['filter_description'] = isset($seo_content['description']) ? $seo_content['description'] : '';
 
-		$sidebar_data = array(
-			'category_reset_href' => $data['category_reset_href'],
-			'selected_category' => $data['selected_category'],
-			'categories' => $data['categories'],
-			'facets' => $data['facets'],
-		);
-		$data['column_left'] = $this->load->view('extension/eleads/filter_sidebar', $sidebar_data);
+		$filter_render_mode = (string)$this->config->get('module_eleads_filter_render_mode');
+		if (!in_array($filter_render_mode, array('theme', 'module'), true)) {
+			$filter_render_mode = 'theme';
+		}
+
+		if ($filter_render_mode === 'theme') {
+			$sidebar_data = array(
+				'category_reset_href' => $data['category_reset_href'],
+				'selected_category' => $data['selected_category'],
+				'categories' => $data['categories'],
+				'facets' => $data['facets'],
+			);
+			$data['column_left'] = $this->load->view('extension/eleads/filter_sidebar', $sidebar_data);
+		} else {
+			$data['column_left'] = $this->load->controller('common/column_left');
+		}
 		$data['column_right'] = $this->load->controller('common/column_right');
 		$data['content_top'] = $this->load->controller('common/content_top');
 		$data['content_bottom'] = $this->load->controller('common/content_bottom');
@@ -456,6 +465,12 @@ class ControllerExtensionModuleEleads extends Controller {
 			$data['header'] = str_replace('</head>', "\n<meta name=\"robots\" content=\"noindex,follow\" />\n</head>", $data['header']);
 		}
 		$data['footer'] = $this->load->controller('common/footer');
+
+		if ($filter_render_mode === 'module') {
+			$this->response->setOutput($this->load->view('extension/eleads/filter', $data));
+			return;
+		}
+
 		$data['thumb'] = '';
 		$data['categories'] = array();
 		$data['text_refine'] = '';

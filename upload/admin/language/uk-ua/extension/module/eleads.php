@@ -45,6 +45,7 @@ $_['help_image_size'] = 'Use "original" or WxH, e.g. 500x500.';
 
 // Buttons
 $_['button_save'] = 'Save';
+$_['button_save_stay'] = 'Зберегти і залишитись';
 $_['button_cancel'] = 'Cancel';
 
 // Tabs
@@ -57,6 +58,7 @@ $_['tab_update'] = 'Update';
 $_['error_permission'] = 'Warning: You do not have permission to modify E-Leads module.';
 
 $_['entry_filter_pages_enabled'] = 'Filter Pages';
+$_['entry_filter_render_mode'] = 'Шаблон сторінки фільтра';
 $_['entry_filter_max_index_depth'] = 'Max Index Depth';
 $_['entry_filter_min_products_noindex'] = 'Noindex If Products <';
 $_['entry_filter_min_products_recommended'] = 'Recommended Noindex If Products <';
@@ -77,3 +79,5 @@ $_['help_filter_template_vars'] = 'Variables: {$category}, {$category_h1}, {$bra
 $_['help_filter_depth_rules'] = '';
 $_['help_filter_product_limits'] = 'If products < 5: noindex. If products < 10: recommended noindex.';
 $_['tab_filter'] = 'Filter';
+$_['text_filter_render_mode_theme'] = 'Шаблон категорії теми';
+$_['text_filter_render_mode_module'] = 'Шаблон модуля';
