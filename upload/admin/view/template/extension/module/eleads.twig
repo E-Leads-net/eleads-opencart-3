@@ -60,6 +60,15 @@
       #content .eleads-btn-group .btn:active {background: #cbd5f5;}
       #content .eleads-help {color: #64748b; font-size: 12px;}
       #content .eleads-pill {display: inline-block; padding: 4px 8px; border-radius: 999px; background: #e2e8f0; font-size: 12px;}
+      #content .eleads-template-help {background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; color: #0f172a; line-height: 1.5;}
+      #content .eleads-template-help-title {font-weight: 600; margin-bottom: 4px;}
+      #content .eleads-template-list {display: flex; flex-direction: column; gap: 12px;}
+      #content .eleads-template-card-item {border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; background: #fff;}
+      #content .eleads-template-card-head {display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;}
+      #content .eleads-template-card-title {font-weight: 600; color: #334155;}
+      #content .eleads-template-field {margin-bottom: 10px;}
+      #content .eleads-template-field:last-child {margin-bottom: 0;}
+      #content .eleads-template-field label {font-weight: 600; font-size: 12px; margin-bottom: 4px; color: #475569;}
     </style>
     {% if api_key_required %}
       <form action="{{ action }}" method="post" enctype="multipart/form-data" id="form-eleads" class="form-horizontal eleads-wrap">
@@ -344,6 +353,73 @@
                           </div>
                         </div>
                       </div>
+                      <div class="form-group">
+                        <label class="col-sm-2 control-label">{{ entry_filter_templates }}</label>
+                        <div class="col-sm-10">
+                          <div class="eleads-template-help" id="eleads-template-vars-help">
+                            <div class="eleads-template-help-title">Available Variables</div>
+                            <div id="eleads-template-vars-help-text">{{ help_filter_template_vars }}</div>
+                          </div>
+                          <div class="eleads-template-list" id="eleads-filter-templates-list">
+                            {% for row in module_eleads_filter_templates %}
+                              <div class="eleads-template-card-item">
+                                <div class="eleads-template-card-head">
+                                  <div class="eleads-template-card-title">Template #<span class="eleads-template-card-title-num">{{ loop.index }}</span></div>
+                                  <button type="button" class="btn btn-danger btn-sm eleads-template-remove">{{ button_remove_template }}</button>
+                                </div>
+                                <div class="row">
+                                  <div class="col-sm-6">
+                                    <div class="eleads-template-field">
+                                      <label>{{ entry_filter_template_category }}</label>
+                                      <select name="module_eleads_filter_templates[{{ loop.index0 }}][category_id]" class="form-control">
+                                        <option value="0" {% if row.category_id == 0 %}selected{% endif %}>{{ text_all_categories }}</option>
+                                        {% for c in filter_template_categories %}
+                                          <option value="{{ c.category_id }}" {% if row.category_id == c.category_id %}selected{% endif %}>{{ c.name }}</option>
+                                        {% endfor %}
+                                      </select>
+                                    </div>
+                                    <div class="eleads-template-field">
+                                      <label>{{ entry_filter_template_h1 }}</label>
+                                      <input type="text" name="module_eleads_filter_templates[{{ loop.index0 }}][h1]" value="{{ row.h1 }}" class="form-control" />
+                                    </div>
+                                    <div class="eleads-template-field">
+                                      <label>{{ entry_filter_template_meta_title }}</label>
+                                      <input type="text" name="module_eleads_filter_templates[{{ loop.index0 }}][meta_title]" value="{{ row.meta_title }}" class="form-control" />
+                                    </div>
+                                  </div>
+                                  <div class="col-sm-6">
+                                    <div class="eleads-template-field">
+                                      <label>{{ entry_filter_template_meta_description }}</label>
+                                      <textarea name="module_eleads_filter_templates[{{ loop.index0 }}][meta_description]" rows="3" class="form-control">{{ row.meta_description }}</textarea>
+                                    </div>
+                                    <div class="eleads-template-field">
+                                      <label>{{ entry_filter_template_meta_keywords }}</label>
+                                      <textarea name="module_eleads_filter_templates[{{ loop.index0 }}][meta_keywords]" rows="3" class="form-control">{{ row.meta_keywords }}</textarea>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div class="row">
+                                  <div class="col-sm-12">
+                                    <div class="eleads-template-field">
+                                      <label>{{ entry_filter_template_short_description }}</label>
+                                      <textarea name="module_eleads_filter_templates[{{ loop.index0 }}][short_description]" rows="4" class="form-control">{{ row.short_description }}</textarea>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div class="row">
+                                  <div class="col-sm-12">
+                                    <div class="eleads-template-field">
+                                      <label>{{ entry_filter_template_description }}</label>
+                                      <textarea name="module_eleads_filter_templates[{{ loop.index0 }}][description]" rows="5" class="form-control">{{ row.description }}</textarea>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            {% endfor %}
+                          </div>
+                          <button type="button" class="btn btn-primary" id="eleads-filter-template-add">{{ button_add_template }}</button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -558,6 +634,97 @@
             if (li) li.classList.toggle('is-open');
           }
         });
+
+        var templateList = document.getElementById('eleads-filter-templates-list');
+        var templateAddBtn = document.getElementById('eleads-filter-template-add');
+        var templateHintText = document.getElementById('eleads-template-vars-help-text');
+        var depthInput = document.querySelector('input[name="module_eleads_filter_max_index_depth"]');
+        var templateNextIndex = templateList ? templateList.querySelectorAll('.eleads-template-card-item').length : 0;
+        function templateCategoryOptions(selected) {
+          var html = '<option value="0"' + (selected === 0 ? ' selected' : '') + '>{{ text_all_categories|e('js') }}</option>';
+          {% for c in filter_template_categories %}
+          html += '<option value="{{ c.category_id }}"' + (selected === {{ c.category_id }} ? ' selected' : '') + '>{{ c.name|e('js') }}</option>';
+          {% endfor %}
+          return html;
+        }
+        function refreshTemplateTitles() {
+          if (!templateList) return;
+          var nums = templateList.querySelectorAll('.eleads-template-card-title-num');
+          Array.prototype.forEach.call(nums, function(node, idx) {
+            node.textContent = String(idx + 1);
+          });
+        }
+        function renderTemplateHint() {
+          if (!templateHintText) return;
+          var depth = parseInt(depthInput && depthInput.value ? depthInput.value : '1', 10);
+          if (isNaN(depth) || depth < 1) depth = 1;
+          var vars = ['{$category}', '{$category_h1}', '{$brand}', '{$sitename}'];
+          for (var i = 1; i <= depth; i++) {
+            if (i === 1) {
+              vars.push('{$attribute_name}');
+              vars.push('{$attributes_val}');
+            } else {
+              vars.push('{$attribute_name_' + i + '}');
+              vars.push('{$attributes_val_' + i + '}');
+            }
+          }
+          templateHintText.textContent = 'Variables: ' + vars.join(', ') + '.';
+        }
+        function bindTemplateRemove() {
+          if (!templateList) return;
+          var buttons = templateList.querySelectorAll('.eleads-template-remove');
+          Array.prototype.forEach.call(buttons, function(btn) {
+            btn.onclick = function() {
+              var card = btn.closest('.eleads-template-card-item');
+              if (card) card.remove();
+              refreshTemplateTitles();
+            };
+          });
+        }
+        if (templateAddBtn && templateList) {
+          templateAddBtn.addEventListener('click', function() {
+            var index = templateNextIndex++;
+            var card = document.createElement('div');
+            card.className = 'eleads-template-card-item';
+            card.innerHTML =
+              '<div class="eleads-template-card-head">' +
+                '<div class="eleads-template-card-title">Template #<span class="eleads-template-card-title-num"></span></div>' +
+                '<button type="button" class="btn btn-danger btn-sm eleads-template-remove">{{ button_remove_template|e('js') }}</button>' +
+              '</div>' +
+              '<div class="row">' +
+                '<div class="col-sm-6">' +
+                  '<div class="eleads-template-field"><label>{{ entry_filter_template_category|e('js') }}</label><select name="module_eleads_filter_templates[' + index + '][category_id]" class="form-control">' + templateCategoryOptions(0) + '</select></div>' +
+                  '<div class="eleads-template-field"><label>{{ entry_filter_template_h1|e('js') }}</label><input type="text" name="module_eleads_filter_templates[' + index + '][h1]" class="form-control" /></div>' +
+                  '<div class="eleads-template-field"><label>{{ entry_filter_template_meta_title|e('js') }}</label><input type="text" name="module_eleads_filter_templates[' + index + '][meta_title]" class="form-control" /></div>' +
+                '</div>' +
+                '<div class="col-sm-6">' +
+                  '<div class="eleads-template-field"><label>{{ entry_filter_template_meta_description|e('js') }}</label><textarea name="module_eleads_filter_templates[' + index + '][meta_description]" rows="3" class="form-control"></textarea></div>' +
+                  '<div class="eleads-template-field"><label>{{ entry_filter_template_meta_keywords|e('js') }}</label><textarea name="module_eleads_filter_templates[' + index + '][meta_keywords]" rows="3" class="form-control"></textarea></div>' +
+                '</div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="row">' +
+                '<div class="col-sm-12">' +
+                  '<div class="eleads-template-field"><label>{{ entry_filter_template_short_description|e('js') }}</label><textarea name="module_eleads_filter_templates[' + index + '][short_description]" rows="4" class="form-control"></textarea></div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="row">' +
+                '<div class="col-sm-12">' +
+                  '<div class="eleads-template-field"><label>{{ entry_filter_template_description|e('js') }}</label><textarea name="module_eleads_filter_templates[' + index + '][description]" rows="5" class="form-control"></textarea></div>' +
+                '</div>' +
+              '</div>';
+            templateList.appendChild(card);
+            bindTemplateRemove();
+            refreshTemplateTitles();
+          });
+          bindTemplateRemove();
+          refreshTemplateTitles();
+        }
+        renderTemplateHint();
+        if (depthInput) {
+          depthInput.addEventListener('input', renderTemplateHint);
+          depthInput.addEventListener('change', renderTemplateHint);
+        }
 
         tree.addEventListener('change', function(e) {
           var input = e.target;
