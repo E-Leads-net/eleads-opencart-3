@@ -61,6 +61,6 @@ $_['entry_filter_max_index_depth'] = 'Max Index Depth';
 $_['entry_filter_min_products_noindex'] = 'Noindex If Products <';
 $_['entry_filter_min_products_recommended'] = 'Recommended Noindex If Products <';
 $_['entry_filter_whitelist_attributes'] = 'Whitelist Attributes';
-$_['help_filter_depth_rules'] = 'Depth rule: category+1 = index; category+2 = index only for whitelist attributes; category+3+ = noindex.';
+$_['help_filter_depth_rules'] = '';
 $_['help_filter_product_limits'] = 'If products < 5: noindex. If products < 10: recommended noindex.';
 $_['tab_filter'] = 'Filter';

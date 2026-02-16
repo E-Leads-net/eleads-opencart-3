@@ -276,6 +276,9 @@ class ControllerExtensionModuleEleads extends Controller {
 		$is_noindex = $this->isFilterPageNoindex($state, (int)$search['total']);
 		if ($is_noindex) {
 			$this->response->addHeader('X-Robots-Tag: noindex, follow');
+			if (method_exists($this->document, 'setRobots')) {
+				$this->document->setRobots('noindex,follow');
+			}
 		}
 
 		$this->load->language('product/search');
@@ -328,6 +331,7 @@ class ControllerExtensionModuleEleads extends Controller {
 		}
 
 		$data['categories'] = array();
+		$data['category_reset_href'] = $this->buildFilterPageUrl(array_merge($state, array('category' => '', 'page' => 1)), $lang);
 		foreach ((array)$search['categories'] as $category) {
 			$cid = isset($category['id']) ? (string)$category['id'] : '';
 			if ($cid === '') {
@@ -422,6 +426,9 @@ class ControllerExtensionModuleEleads extends Controller {
 		$data['content_top'] = $this->load->controller('common/content_top');
 		$data['content_bottom'] = $this->load->controller('common/content_bottom');
 		$data['header'] = $this->load->controller('common/header');
+		if ($is_noindex && strpos($data['header'], 'name="robots"') === false) {
+			$data['header'] = str_replace('</head>', "\n<meta name=\"robots\" content=\"noindex,follow\" />\n</head>", $data['header']);
+		}
 		$data['footer'] = $this->load->controller('common/footer');
 
 		$this->response->setOutput($this->load->view('extension/eleads/filter', $data));
@@ -698,10 +705,14 @@ class ControllerExtensionModuleEleads extends Controller {
 		if ((string)$state['query'] !== '') {
 			$params['query'] = (string)$state['query'];
 		}
+		$category_fallback = '';
 		if ((string)$state['category'] !== '') {
 			$category_value = (string)$state['category'];
 			$category_id = $this->resolveCategoryIdByName($category_value);
 			$params['category'] = $category_id !== '' ? $category_id : $category_value;
+			if ($category_id !== '' && $category_id !== $category_value) {
+				$category_fallback = $category_value;
+			}
 		}
 		if ((string)$state['sort'] !== '') {
 			$params['sort'] = (string)$state['sort'];
@@ -710,7 +721,20 @@ class ControllerExtensionModuleEleads extends Controller {
 			$params['filters'] = json_encode($state['filters']);
 		}
 
-		$url = EleadsApiRoutes::SEARCH_FILTERS . '?' . http_build_query($params);
+		$data = $this->requestSearchFilters($params, $api_key);
+		if (is_array($data) && $category_fallback !== '' && (int)$data['total'] <= 0) {
+			$params['category'] = $category_fallback;
+			$fallback_data = $this->requestSearchFilters($params, $api_key);
+			if (is_array($fallback_data)) {
+				$data = $fallback_data;
+			}
+		}
+
+		return $data;
+	}
+
+	private function requestSearchFilters($params, $api_key) {
+		$url = EleadsApiRoutes::SEARCH_FILTERS . '?' . http_build_query((array)$params);
 		$ch = curl_init();
 		if ($ch === false) {
 			return null;
@@ -994,7 +1018,7 @@ class ControllerExtensionModuleEleads extends Controller {
 	}
 
 	private function resolveCategoryIdByName($category_name) {
-		$name = trim(str_replace('_', ' ', (string)$category_name));
+		$name = trim(rawurldecode(str_replace('_', ' ', (string)$category_name)));
 		if ($name === '') {
 			return '';
 		}
@@ -1003,14 +1027,18 @@ class ControllerExtensionModuleEleads extends Controller {
 		}
 		$language_id = (int)$this->config->get('config_language_id');
 		$norm_target = $this->normalizeCategoryText($name);
-		$sql = "SELECT category_id, name FROM " . DB_PREFIX . "category_description";
+		$queries = array();
 		if ($language_id > 0) {
-			$sql .= " WHERE language_id = '" . $language_id . "'";
+			$queries[] = "SELECT category_id, name FROM " . DB_PREFIX . "category_description WHERE language_id = '" . $language_id . "'";
 		}
-		$query = $this->db->query($sql);
-		foreach ((array)$query->rows as $row) {
-			if ($this->normalizeCategoryText((string)$row['name']) === $norm_target) {
-				return (string)(int)$row['category_id'];
+		$queries[] = "SELECT category_id, name FROM " . DB_PREFIX . "category_description";
+
+		foreach ($queries as $sql) {
+			$query = $this->db->query($sql);
+			foreach ((array)$query->rows as $row) {
+				if ($this->normalizeCategoryText((string)$row['name']) === $norm_target) {
+					return (string)(int)$row['category_id'];
+				}
 			}
 		}
 		return '';
