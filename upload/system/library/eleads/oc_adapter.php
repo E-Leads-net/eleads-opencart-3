@@ -318,15 +318,71 @@ class EleadsOcAdapter {
 		$this->registry->get('load')->model('catalog/product');
 		$groups = $this->registry->get('model_catalog_product')->getProductAttributes((int)$product_id);
 		$result = array();
+		$current_language_id = (int)$this->config->get('config_language_id');
 		foreach ($groups as $group) {
-			if (empty($group['attribute'])) {
+			// Catalog model shape (storefront): attribute groups with nested attribute rows.
+			if (!empty($group['attribute']) && is_array($group['attribute'])) {
+				foreach ($group['attribute'] as $attr) {
+					$attribute_id = isset($attr['attribute_id']) ? (int)$attr['attribute_id'] : 0;
+					$name = isset($attr['name']) ? trim((string)$attr['name']) : '';
+					$value = isset($attr['text']) ? trim((string)$attr['text']) : '';
+					if ($attribute_id <= 0 || $name === '' || $value === '') {
+						continue;
+					}
+					$result[] = array(
+						'attribute_id' => $attribute_id,
+						'name' => $name,
+						'value' => $value,
+					);
+				}
 				continue;
 			}
-			foreach ($group['attribute'] as $attr) {
+
+			// Admin model shape: one attribute row with product_attribute_description map by language_id.
+			if (!empty($group['attribute_id']) && !empty($group['product_attribute_description']) && is_array($group['product_attribute_description'])) {
+				$attribute_id = (int)$group['attribute_id'];
+				$descriptions = $group['product_attribute_description'];
+				$selected_language_id = 0;
+				$selected_value = '';
+
+				if ($current_language_id > 0 && isset($descriptions[$current_language_id]) && is_array($descriptions[$current_language_id])) {
+					$selected_value = isset($descriptions[$current_language_id]['text']) ? trim((string)$descriptions[$current_language_id]['text']) : '';
+					if ($selected_value !== '') {
+						$selected_language_id = $current_language_id;
+					}
+				}
+
+				if ($selected_language_id === 0) {
+					foreach ($descriptions as $language_id => $desc) {
+						if (!is_array($desc)) {
+							continue;
+						}
+						$value = isset($desc['text']) ? trim((string)$desc['text']) : '';
+						if ($value === '') {
+							continue;
+						}
+						$selected_language_id = (int)$language_id;
+						$selected_value = $value;
+						break;
+					}
+				}
+
+				if ($selected_value === '') {
+					continue;
+				}
+
+				$name = $this->resolveAttributeName($attribute_id, $selected_language_id);
+				if ($name === '') {
+					$name = $this->resolveAttributeName($attribute_id, $current_language_id);
+				}
+				if ($name === '') {
+					continue;
+				}
+
 				$result[] = array(
-					'attribute_id' => (int)$attr['attribute_id'],
-					'name' => $attr['name'],
-					'value' => $attr['text'],
+					'attribute_id' => $attribute_id,
+					'name' => $name,
+					'value' => $selected_value,
 				);
 			}
 		}
@@ -340,12 +396,21 @@ class EleadsOcAdapter {
 			if (empty($option['product_option_value'])) {
 				continue;
 			}
+			$option_name = isset($option['name']) ? (string)$option['name'] : (isset($option['option_id']) ? (string)$option['option_id'] : '');
 			foreach ($option['product_option_value'] as $value) {
+				$value_name = '';
+				if (isset($value['name'])) {
+					$value_name = (string)$value['name'];
+				} elseif (isset($value['value'])) {
+					$value_name = (string)$value['value'];
+				} elseif (isset($value['option_value_id'])) {
+					$value_name = (string)$value['option_value_id'];
+				}
 				$result[] = array(
 					'option_id' => (int)$option['option_id'],
 					'option_value_id' => (int)$value['option_value_id'],
-					'name' => $option['name'],
-					'value' => $value['name'],
+					'name' => $option_name,
+					'value' => $value_name,
 				);
 			}
 		}
@@ -490,11 +555,39 @@ class EleadsOcAdapter {
 		$selected_set = array_flip(array_map('intval', $selected_ids));
 		$names = array();
 		foreach ($attributes as $attr) {
-			if (isset($selected_set[(int)$attr['attribute_id']])) {
-				$names[] = $attr['name'];
+			$attribute_id = isset($attr['attribute_id']) ? (int)$attr['attribute_id'] : 0;
+			$name = isset($attr['name']) ? trim((string)$attr['name']) : '';
+			if ($attribute_id > 0 && $name !== '' && isset($selected_set[$attribute_id])) {
+				$names[] = $name;
 			}
 		}
 		return array_values(array_unique($names));
+	}
+
+	private function resolveAttributeName($attribute_id, $language_id = 0) {
+		$attribute_id = (int)$attribute_id;
+		$language_id = (int)$language_id;
+		if ($attribute_id <= 0) {
+			return '';
+		}
+
+		if ($language_id > 0) {
+			$query = $this->db->query(
+				"SELECT name FROM " . DB_PREFIX . "attribute_description WHERE attribute_id = '" . $attribute_id . "' AND language_id = '" . $language_id . "' LIMIT 1"
+			);
+			if ($query->num_rows && !empty($query->row['name'])) {
+				return (string)$query->row['name'];
+			}
+		}
+
+		$query = $this->db->query(
+			"SELECT name FROM " . DB_PREFIX . "attribute_description WHERE attribute_id = '" . $attribute_id . "' ORDER BY language_id ASC LIMIT 1"
+		);
+		if ($query->num_rows && !empty($query->row['name'])) {
+			return (string)$query->row['name'];
+		}
+
+		return '';
 	}
 
 	private function toBool($value) {
