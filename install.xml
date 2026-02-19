@@ -2,10 +2,53 @@
 <modification>
   <name>E-Leads OpenCart 3</name>
   <code>eleads_oc3</code>
-  <version>0.1.24</version>
+  <version>0.1.25</version>
   <author>E-Leads</author>
 
   <file path="catalog/controller/startup/seo_url.php">
+    <operation>
+      <search><![CDATA[public function index() {]]></search>
+      <add position="after"><![CDATA[
+		// E-Leads feed route
+		if (isset($this->request->get['_route_'])) {
+			$route = trim($this->request->get['_route_'], '/');
+			if (preg_match('#^eleads-yml/([a-zA-Z_-]+)\.xml$#', $route, $m)) {
+				$this->request->get['route'] = 'extension/module/eleads';
+				$this->request->get['lang'] = $m[1];
+				return;
+			}
+			if ($route === 'e-search/sitemap-sync' || $route === 'e-search/api/sitemap-sync') {
+				$this->request->get['route'] = 'extension/module/eleads/sitemapSync';
+				return;
+			}
+			if ($route === 'e-search/api/languages') {
+				$this->request->get['route'] = 'extension/module/eleads/languages';
+				return;
+			}
+			if (preg_match('#^([a-zA-Z0-9_-]+)/e-search/(.+)$#', $route, $m)) {
+				$lang = $m[1];
+				$tail = $m[2];
+				if ($tail !== '' && strpos($tail, 'api/') !== 0 && $tail !== 'sitemap.xml') {
+					$this->request->get['route'] = 'extension/module/eleads/seoPage';
+					$this->request->get['slug'] = $tail;
+					$this->request->get['lang'] = $lang;
+					return;
+				}
+			}
+			if (strpos($route, 'e-search/') === 0) {
+				$tail = substr($route, strlen('e-search/'));
+				if ($tail !== '' && strpos($tail, 'api/') !== 0 && $tail !== 'sitemap.xml') {
+					$this->request->get['route'] = 'extension/module/eleads/seoPage';
+					$this->request->get['slug'] = $tail;
+					return;
+				}
+			}
+		}
+]]></add>
+    </operation>
+  </file>
+
+  <file path="catalog/controller/startup/seo_pro.php">
     <operation>
       <search><![CDATA[public function index() {]]></search>
       <add position="after"><![CDATA[
