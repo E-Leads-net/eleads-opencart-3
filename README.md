@@ -118,6 +118,57 @@ Errors:
 - `401`: `{"error":"unauthorized"}` or `{"error":"api_key_missing"}`
 - `405`: `{"error":"method_not_allowed"}`
 
+### Feeds Endpoint (Module)
+Returns all available feed URLs in `language -> feed_url` format:
+
+```
+GET /eleads-yml/api/feeds
+Authorization: Bearer <API_KEY>
+Accept: application/json
+```
+
+Request rules:
+- Method must be `GET`.
+- `Authorization` header is required and must match module API key.
+
+Language/URL generation rules:
+- Uses enabled store languages from OpenCart language list.
+- Language keys are normalized with the same logic as `/e-search/api/languages` (`href_lang`):
+  - `en-*` -> `en`
+  - `ru-*` -> `ru`
+  - `uk-*` / `ua-*` -> `uk` for feed language code
+- Response object key (`items`) uses sitemap language label:
+  - `en`, `ru`, `ua`
+- Feed URL format:
+  - `https://example.com/eleads-yml/{feed_lang}.xml`
+- If feed access key is configured (`module_eleads_access_key`), URL includes:
+  - `?key=<access_key>`
+- If several store languages map to the same label (`en`, `ru`, `ua`), only one entry is returned for that label.
+
+Success response example:
+```json
+{
+  "status": "ok",
+  "count": 3,
+  "items": {
+    "ru": "https://example.com/eleads-yml/ru.xml?key=abc",
+    "ua": "https://example.com/eleads-yml/uk.xml?key=abc",
+    "en": "https://example.com/eleads-yml/en.xml?key=abc"
+  }
+}
+```
+
+Error responses:
+- `401`: `{"error":"unauthorized"}` or `{"error":"api_key_missing"}`
+- `405`: `{"error":"method_not_allowed"}`
+
+Curl example:
+```bash
+curl -X GET "https://example.com/eleads-yml/api/feeds" \
+  -H "Authorization: Bearer <API_KEY>" \
+  -H "Accept: application/json"
+```
+
 ## Product Sync Behavior
 - Create/update/delete events send one API request per language available for the product.
 - For delete events, requests are sent for all enabled store languages.

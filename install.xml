@@ -2,7 +2,7 @@
 <modification>
   <name>E-Leads OpenCart 3</name>
   <code>eleads_oc3</code>
-  <version>0.1.25</version>
+  <version>0.1.26</version>
   <author>E-Leads</author>
 
   <file path="catalog/controller/startup/seo_url.php">
@@ -15,6 +15,10 @@
 			if (preg_match('#^eleads-yml/([a-zA-Z_-]+)\.xml$#', $route, $m)) {
 				$this->request->get['route'] = 'extension/module/eleads';
 				$this->request->get['lang'] = $m[1];
+				return;
+			}
+			if ($route === 'eleads-yml/api/feeds') {
+				$this->request->get['route'] = 'extension/module/eleads/feeds';
 				return;
 			}
 			if ($route === 'e-search/sitemap-sync' || $route === 'e-search/api/sitemap-sync') {
@@ -58,6 +62,10 @@
 			if (preg_match('#^eleads-yml/([a-zA-Z_-]+)\.xml$#', $route, $m)) {
 				$this->request->get['route'] = 'extension/module/eleads';
 				$this->request->get['lang'] = $m[1];
+				return;
+			}
+			if ($route === 'eleads-yml/api/feeds') {
+				$this->request->get['route'] = 'extension/module/eleads/feeds';
 				return;
 			}
 			if ($route === 'e-search/sitemap-sync' || $route === 'e-search/api/sitemap-sync') {

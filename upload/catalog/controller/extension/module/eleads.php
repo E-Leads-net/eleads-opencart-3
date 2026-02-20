@@ -207,6 +207,56 @@ class ControllerExtensionModuleEleads extends Controller {
 		)));
 	}
 
+	public function feeds() {
+		if (($this->request->server['REQUEST_METHOD'] ?? '') !== 'GET') {
+			$this->response->addHeader('HTTP/1.1 405 Method Not Allowed');
+			$this->response->addHeader('Content-Type: application/json');
+			$this->response->setOutput(json_encode(array('error' => 'method_not_allowed')));
+			return;
+		}
+
+		$api_key = (string)$this->config->get('module_eleads_api_key');
+		if ($api_key === '') {
+			$this->response->addHeader('HTTP/1.1 401 Unauthorized');
+			$this->response->addHeader('Content-Type: application/json');
+			$this->response->setOutput(json_encode(array('error' => 'api_key_missing')));
+			return;
+		}
+
+		$auth = $this->getBearerToken();
+		if ($auth === '' || !hash_equals($api_key, $auth)) {
+			$this->response->addHeader('HTTP/1.1 401 Unauthorized');
+			$this->response->addHeader('Content-Type: application/json');
+			$this->response->setOutput(json_encode(array('error' => 'unauthorized')));
+			return;
+		}
+
+		$access_key = trim((string)$this->config->get('module_eleads_access_key'));
+		$this->load->model('localisation/language');
+		$items = array();
+		foreach ((array)$this->model_localisation_language->getLanguages() as $language) {
+			if (isset($language['status']) && !$language['status']) {
+				continue;
+			}
+			$code = isset($language['code']) ? (string)$language['code'] : '';
+			$label = $this->resolveSeoSitemapLanguage($code);
+			$feed_lang = $this->normalizeFeedLang($code);
+			if ($label === '' || $feed_lang === '') {
+				continue;
+			}
+			if (!isset($items[$label])) {
+				$items[$label] = $this->buildFeedUrl($feed_lang, $access_key);
+			}
+		}
+
+		$this->response->addHeader('Content-Type: application/json');
+		$this->response->setOutput(json_encode(array(
+			'status' => 'ok',
+			'count' => count($items),
+			'items' => (object)$items,
+		)));
+	}
+
 	public function seoPage() {
 		$slug = isset($this->request->get['slug']) ? trim((string)$this->request->get['slug']) : '';
 		$lang = isset($this->request->get['lang']) ? trim((string)$this->request->get['lang']) : '';
@@ -746,5 +796,13 @@ class ControllerExtensionModuleEleads extends Controller {
 		$base = $this->getSeoBaseUrl();
 		$lang = $this->resolveSeoSitemapLanguage($lang);
 		return $base . '/' . rawurlencode((string)$lang) . '/e-search/' . rawurlencode((string)$slug);
+	}
+
+	private function buildFeedUrl($feed_lang, $access_key) {
+		$url = $this->getSeoBaseUrl() . '/eleads-yml/' . rawurlencode((string)$feed_lang) . '.xml';
+		if ($access_key !== '') {
+			$url .= '?key=' . rawurlencode((string)$access_key);
+		}
+		return $url;
 	}
 }
