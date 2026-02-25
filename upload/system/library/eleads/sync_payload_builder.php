@@ -66,6 +66,10 @@ class EleadsSyncPayloadBuilder {
 		$brand_name = $adapter->getManufacturerName((int)$product['manufacturer_id']);
 		$stock_status = $adapter->getStockStatusName(isset($product['stock_status_id']) ? (int)$product['stock_status_id'] : 0);
 		$label = $adapter->getProductLabel($product_id);
+		$sku = isset($product['sku']) ? trim((string)$product['sku']) : '';
+		if ($sku === '') {
+			$sku = isset($product['model']) ? trim((string)$product['model']) : '';
+		}
 		$images = $adapter->getProductImages($product_id, 0, $adapter->getImageSize());
 
 		$short_description = isset($product['meta_description']) ? (string)$product['meta_description'] : '';
@@ -123,7 +127,7 @@ class EleadsSyncPayloadBuilder {
 			'quantity' => (int)$quantity,
 			'stock_status' => $stock_status,
 			'vendor' => $brand_name,
-			'sku' => (string)$product['sku'],
+			'sku' => $sku,
 			'label' => $label,
 			'sort_order' => isset($product['sort_order']) ? (int)$product['sort_order'] : 0,
 			'images' => $images,

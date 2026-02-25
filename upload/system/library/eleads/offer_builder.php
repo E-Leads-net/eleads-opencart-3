@@ -83,7 +83,7 @@ class EleadsOfferBuilder {
 					'stock_status' => EleadsFeedFormatter::formatStockStatus($available, $lang),
 					'pictures' => $images,
 					'vendor' => $brand_name,
-					'sku' => $first_variant['sku'],
+					'sku' => self::resolveOfferSku($first_variant, $product),
 					'label' => '',
 					'order' => isset($product['sort_order']) ? (int)$product['sort_order'] : 0,
 					'description' => $product['description'],
@@ -124,7 +124,7 @@ class EleadsOfferBuilder {
 					'stock_status' => EleadsFeedFormatter::formatStockStatus($available, $lang),
 					'pictures' => $images,
 					'vendor' => $brand_name,
-					'sku' => $variant['sku'],
+					'sku' => self::resolveOfferSku($variant, $product),
 					'label' => '',
 					'order' => isset($product['sort_order']) ? (int)$product['sort_order'] : 0,
 					'description' => $product['description'],
@@ -135,5 +135,13 @@ class EleadsOfferBuilder {
 		}
 
 		return $offers;
+	}
+
+	private static function resolveOfferSku($variant, $product) {
+		$sku = isset($variant['sku']) ? trim((string)$variant['sku']) : '';
+		if ($sku !== '') {
+			return $sku;
+		}
+		return isset($product['model']) ? trim((string)$product['model']) : '';
 	}
 }
