@@ -138,10 +138,6 @@ class EleadsOfferBuilder {
 	}
 
 	private static function resolveOfferSku($variant, $product) {
-		$sku = isset($variant['sku']) ? trim((string)$variant['sku']) : '';
-		if ($sku !== '') {
-			return $sku;
-		}
 		return isset($product['model']) ? trim((string)$product['model']) : '';
 	}
 }

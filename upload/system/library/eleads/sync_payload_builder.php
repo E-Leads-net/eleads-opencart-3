@@ -66,10 +66,7 @@ class EleadsSyncPayloadBuilder {
 		$brand_name = $adapter->getManufacturerName((int)$product['manufacturer_id']);
 		$stock_status = $adapter->getStockStatusName(isset($product['stock_status_id']) ? (int)$product['stock_status_id'] : 0);
 		$label = $adapter->getProductLabel($product_id);
-		$sku = isset($product['sku']) ? trim((string)$product['sku']) : '';
-		if ($sku === '') {
-			$sku = isset($product['model']) ? trim((string)$product['model']) : '';
-		}
+		$sku = isset($product['model']) ? trim((string)$product['model']) : '';
 		$images = $adapter->getProductImages($product_id, 0, $adapter->getImageSize());
 
 		$short_description = isset($product['meta_description']) ? (string)$product['meta_description'] : '';
