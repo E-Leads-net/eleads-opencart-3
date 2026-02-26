@@ -39,9 +39,11 @@ $_['entry_image_size'] = 'Размер изображения';
 $_['entry_short_description_source'] = 'Источник короткого описания';
 $_['entry_seo_pages'] = 'SEO страницы';
 $_['entry_sitemap_url'] = 'Ссылка на sitemap';
+$_['entry_filter_custom_css'] = 'Пользовательский CSS';
 
 // Help
 $_['help_image_size'] = 'Используйте "original" или WxH, например 500x500.';
+$_['help_filter_custom_css'] = 'Стили применяются только на страницах /e-filter и хранятся в базе, поэтому не сбрасываются при обновлении модуля.';
 
 // Buttons
 $_['button_save'] = 'Сохранить';
@@ -50,6 +52,7 @@ $_['button_cancel'] = 'Отмена';
 // Tabs
 $_['tab_export'] = 'Экспорт';
 $_['tab_seo'] = 'SEO';
+$_['tab_styles'] = 'Стили';
 $_['tab_api'] = 'API ключ';
 $_['tab_update'] = 'Обновление';
 

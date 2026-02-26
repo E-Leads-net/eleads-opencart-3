@@ -26,11 +26,13 @@ class ControllerExtensionModuleEleads extends Controller {
 			$is_api_form = true;
 			$api_key_submitted = trim((string)$this->request->post['module_eleads_api_key']);
 			$status = $this->getApiKeyStatusData($api_key_submitted);
-			$api_key_status = $status !== null ? !empty($status['ok']) : null;
 			$seo_status = $status !== null ? (!empty($status['seo_status'])) : null;
-			if ($api_key_submitted !== '' && $api_key_status !== false) {
+			if ($api_key_submitted !== '' && !empty($status['ok'])) {
 				$settings_current = $this->model_setting_setting->getSetting('module_eleads');
 				$settings_current['module_eleads_api_key'] = $api_key_submitted;
+				if (isset($status['project_id'])) {
+					$settings_current['module_eleads_project_id'] = (int)$status['project_id'];
+				}
 				$this->model_setting_setting->editSetting('module_eleads', $settings_current);
 				$api_key = $api_key_submitted;
 				$api_key_valid = true;
@@ -46,6 +48,7 @@ class ControllerExtensionModuleEleads extends Controller {
 			$status = $this->getApiKeyStatusData($api_key);
 			if ($status !== null) {
 				$seo_status = !empty($status['seo_status']);
+				$this->syncProjectIdSetting(isset($status['project_id']) ? (int)$status['project_id'] : null);
 			}
 		}
 
@@ -114,6 +117,7 @@ class ControllerExtensionModuleEleads extends Controller {
 		$data['button_cancel'] = $this->language->get('button_cancel');
 		$data['tab_export'] = $this->language->get('tab_export');
 		$data['tab_seo'] = $this->language->get('tab_seo');
+		$data['tab_styles'] = $this->language->get('tab_styles');
 		$data['tab_api'] = $this->language->get('tab_api');
 		$data['tab_update'] = $this->language->get('tab_update');
 		$data['entry_status'] = $this->language->get('entry_status');
@@ -135,6 +139,8 @@ class ControllerExtensionModuleEleads extends Controller {
 		$data['entry_short_description_source'] = $this->language->get('entry_short_description_source');
 		$data['entry_seo_pages'] = $this->language->get('entry_seo_pages');
 		$data['entry_sitemap_url'] = $this->language->get('entry_sitemap_url');
+		$data['entry_filter_custom_css'] = $this->language->get('entry_filter_custom_css');
+		$data['help_filter_custom_css'] = $this->language->get('help_filter_custom_css');
 		$data['text_seo_url_disabled'] = $this->language->get('text_seo_url_disabled');
 		$data['seo_tab_available'] = $seo_available;
 		$data['help_image_size'] = $this->language->get('help_image_size');
@@ -236,8 +242,25 @@ class ControllerExtensionModuleEleads extends Controller {
 		}
 		return array(
 			'ok' => !empty($data['ok']),
-			'seo_status' => isset($data['seo_status']) ? (bool)$data['seo_status'] : null
+			'seo_status' => isset($data['seo_status']) ? (bool)$data['seo_status'] : null,
+			'project_id' => isset($data['project_id']) ? (int)$data['project_id'] : null,
 		);
+	}
+
+	private function syncProjectIdSetting($project_id) {
+		if ($project_id === null || (int)$project_id <= 0) {
+			return;
+		}
+
+		$this->load->model('setting/setting');
+		$settings = $this->model_setting_setting->getSetting('module_eleads');
+		$current = isset($settings['module_eleads_project_id']) ? (int)$settings['module_eleads_project_id'] : 0;
+		if ($current === (int)$project_id) {
+			return;
+		}
+
+		$settings['module_eleads_project_id'] = (int)$project_id;
+		$this->model_setting_setting->editSetting('module_eleads', $settings);
 	}
 
 	public function update() {
@@ -341,6 +364,8 @@ class ControllerExtensionModuleEleads extends Controller {
 			'module_eleads_short_description_source' => 'meta_description',
 			'module_eleads_seo_pages_enabled' => 0,
 			'module_eleads_api_key' => '',
+			'module_eleads_project_id' => 0,
+			'module_eleads_filter_custom_css' => '',
 		);
 
 		$data = array();

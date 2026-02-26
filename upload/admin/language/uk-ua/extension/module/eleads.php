@@ -39,9 +39,11 @@ $_['entry_image_size'] = 'Image Size';
 $_['entry_short_description_source'] = 'Short Description Source';
 $_['entry_seo_pages'] = 'SEO Pages';
 $_['entry_sitemap_url'] = 'Sitemap URL';
+$_['entry_filter_custom_css'] = 'Custom CSS';
 
 // Help
 $_['help_image_size'] = 'Use "original" or WxH, e.g. 500x500.';
+$_['help_filter_custom_css'] = 'Styles are applied only on /e-filter pages and are stored in DB, so updates do not reset them.';
 
 // Buttons
 $_['button_save'] = 'Save';
@@ -50,6 +52,7 @@ $_['button_cancel'] = 'Cancel';
 // Tabs
 $_['tab_export'] = 'Export';
 $_['tab_seo'] = 'SEO';
+$_['tab_styles'] = 'Styles';
 $_['tab_api'] = 'API Key';
 $_['tab_update'] = 'Update';
 

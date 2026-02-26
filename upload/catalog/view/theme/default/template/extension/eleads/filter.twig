@@ -1,0 +1,477 @@
+{{ header }}
+<div id="product-category" class="container eleads-filter-page"
+     data-api-url="{{ filter_api_url }}"
+     data-project-id="{{ filter_project_id }}"
+     data-language="{{ filter_language }}"
+     data-base-url="{{ filter_base_url }}"
+     data-initial-state='{{ filter_state_json|raw }}'>
+  <style>
+    .eleads-filter-page #eleads-filter-sidebar .list-group { margin-bottom: 16px; }
+    .eleads-filter-page #eleads-filter-sidebar .list-group-item { border-radius: 0; }
+    .eleads-filter-page #eleads-filter-sidebar .list-group-item.header { font-weight: 600; }
+    .eleads-filter-page #eleads-filter-sidebar .list-group-item a { color: inherit; text-decoration: none; }
+    .eleads-filter-page #eleads-filter-sidebar .filter-option { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 400; }
+    .eleads-filter-page #eleads-filter-sidebar .filter-option input { margin: 0; }
+    .eleads-filter-page .eleads-toolbar { margin-bottom: 20px; }
+    .eleads-filter-page .eleads-status { margin: 10px 0 16px; color: #666; }
+    .eleads-filter-page .pagination-wrap { margin-top: 16px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .eleads-filter-page .pagination-wrap .btn[disabled] { pointer-events: none; opacity: .5; }
+    .eleads-filter-page .product-layout { margin-bottom: 20px; }
+    .eleads-filter-page .product-thumb {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    .eleads-filter-page .product-thumb .image {
+      min-height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+    .eleads-filter-page .product-thumb .image img {
+      width: auto !important;
+      height: auto !important;
+      max-width: 100%;
+      max-height: 200px;
+      margin: 0 auto;
+    }
+    .eleads-filter-page .product-thumb > div:last-child {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+    .eleads-filter-page .product-thumb .caption {
+      min-height: 170px;
+      display: flex;
+      flex-direction: column;
+    }
+    .eleads-filter-page .product-thumb .caption p {
+      margin-bottom: 8px;
+    }
+    .eleads-filter-page .product-thumb .button-group {
+      margin-top: auto;
+    }
+  </style>
+
+  <ul class="breadcrumb">
+    {% for breadcrumb in breadcrumbs %}
+      <li><a href="{{ breadcrumb.href }}">{{ breadcrumb.text }}</a></li>
+    {% endfor %}
+  </ul>
+
+  <div class="row">
+    {{ column_left }}
+    {% if column_left and column_right %}
+      {% set class = 'col-sm-6' %}
+    {% elseif column_left or column_right %}
+      {% set class = 'col-sm-9' %}
+    {% else %}
+      {% set class = 'col-sm-12' %}
+    {% endif %}
+    <div id="content" class="{{ class }}">
+      {{ content_top }}
+
+      <div class="row eleads-toolbar">
+        <div class="col-md-8 col-sm-6 col-xs-12">
+          <input type="text" id="eleads-query" class="form-control" placeholder="{{ heading_title }}" value="" />
+        </div>
+        <div class="col-md-2 col-sm-3 col-xs-6">
+          <select id="input-sort" class="form-control">
+            {% for sort in sort_options %}
+              <option value="{{ sort.value }}">{{ sort.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2 col-sm-3 col-xs-6">
+          <select id="input-limit" class="form-control">
+            {% for limit in limit_options %}
+              <option value="{{ limit }}">{{ limit }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div id="eleads-status" class="eleads-status">{{ text_loading }}</div>
+
+      <div class="row" id="eleads-products"></div>
+
+      <div class="pagination-wrap">
+        <button type="button" id="eleads-prev" class="btn btn-default">{{ button_prev }}</button>
+        <span id="eleads-page-info" class="text-muted"></span>
+        <button type="button" id="eleads-next" class="btn btn-default">{{ button_next }}</button>
+      </div>
+
+      {{ content_bottom }}
+    </div>
+    {{ column_right }}
+  </div>
+</div>
+{{ footer }}
+
+<script>
+(function () {
+  var root = document.querySelector('.eleads-filter-page');
+  if (!root) return;
+
+  var apiUrl = root.getAttribute('data-api-url') || '';
+  var projectId = parseInt(root.getAttribute('data-project-id') || '0', 10);
+  var language = root.getAttribute('data-language') || 'en';
+  var baseUrl = root.getAttribute('data-base-url') || window.location.pathname;
+  var initialState = {};
+  try {
+    initialState = JSON.parse(root.getAttribute('data-initial-state') || '{}') || {};
+  } catch (e) {
+    initialState = {};
+  }
+
+  var state = {
+    query: typeof initialState.query === 'string' ? initialState.query : '',
+    category: typeof initialState.category === 'string' ? initialState.category : '',
+    sort: typeof initialState.sort === 'string' ? initialState.sort : '',
+    page: parseInt(initialState.page || 1, 10) || 1,
+    per_page: parseInt(initialState.per_page || 20, 10) || 20,
+    filters: (initialState.filters && typeof initialState.filters === 'object') ? initialState.filters : {}
+  };
+
+  var queryInput = document.getElementById('eleads-query');
+  var sortInput = document.getElementById('input-sort');
+  var limitInput = document.getElementById('input-limit');
+  var statusEl = document.getElementById('eleads-status');
+  var sidebarEl = document.getElementById('eleads-filter-sidebar');
+  var productsEl = document.getElementById('eleads-products');
+  var prevBtn = document.getElementById('eleads-prev');
+  var nextBtn = document.getElementById('eleads-next');
+  var pageInfoEl = document.getElementById('eleads-page-info');
+
+  if (queryInput) queryInput.value = state.query;
+  if (sortInput) sortInput.value = state.sort;
+  if (limitInput) limitInput.value = String(state.per_page);
+
+  function sanitizeFilters(filters) {
+    var out = {};
+    Object.keys(filters || {}).forEach(function (name) {
+      var key = String(name || '').trim();
+      if (!key) return;
+      var values = Array.isArray(filters[name]) ? filters[name] : [];
+      var unique = [];
+      values.forEach(function (v) {
+        var val = String(v || '').trim();
+        if (val && unique.indexOf(val) === -1) unique.push(val);
+      });
+      if (unique.length) out[key] = unique;
+    });
+    return out;
+  }
+
+  function buildRequestParams() {
+    var params = {
+      project_id: String(projectId),
+      language: language,
+      page: String(state.page),
+      per_page: String(state.per_page)
+    };
+
+    if (state.query) params.query = state.query;
+    if (state.category) params.category = state.category;
+    if (state.sort) params.sort = state.sort;
+
+    var filters = sanitizeFilters(state.filters);
+    if (Object.keys(filters).length) {
+      params.filters = JSON.stringify(filters);
+    }
+
+    return params;
+  }
+
+  function buildStateUrl() {
+    var params = new URLSearchParams();
+    if (state.query) params.set('query', state.query);
+    if (state.category) params.set('category', state.category);
+    if (state.sort) params.set('sort', state.sort);
+    if (state.page > 1) params.set('page', String(state.page));
+    if (state.per_page !== 20) params.set('per_page', String(state.per_page));
+
+    var filters = sanitizeFilters(state.filters);
+    if (Object.keys(filters).length) {
+      params.set('filters', JSON.stringify(filters));
+    }
+
+    var qs = params.toString();
+    return baseUrl + (qs ? ('?' + qs) : '');
+  }
+
+  function pushState() {
+    var url = buildStateUrl();
+    window.history.replaceState({}, '', url);
+  }
+
+  function buildSidebar(data) {
+    var categories = (data.results && Array.isArray(data.results.categories)) ? data.results.categories : [];
+    var facets = (data.facets && typeof data.facets === 'object') ? data.facets : {};
+
+    var html = '';
+
+    html += '<div class="list-group">';
+    html += '<div class="list-group-item header">{{ text_category|e('js') }}</div>';
+    html += '<button type="button" class="list-group-item' + (state.category ? '' : ' active') + '" data-role="cat" data-id="">{{ text_all_categories|e('js') }}</button>';
+    categories.forEach(function (cat) {
+      var id = (cat && cat.id !== undefined) ? String(cat.id) : '';
+      var name = cat && cat.name ? String(cat.name) : id;
+      var count = cat && cat.count !== undefined ? Number(cat.count) : 0;
+      var active = state.category === id;
+      html += '<button type="button" class="list-group-item' + (active ? ' active' : '') + '" data-role="cat" data-id="' + escapeHtml(id) + '">' + escapeHtml(name) + ' (' + count + ')</button>';
+    });
+    html += '</div>';
+
+    Object.keys(facets).forEach(function (facetName) {
+      var items = Array.isArray(facets[facetName]) ? facets[facetName] : [];
+      html += '<div class="list-group">';
+      html += '<div class="list-group-item header">' + escapeHtml(facetName) + '</div>';
+      items.forEach(function (item) {
+        var value = item && item.value ? String(item.value) : '';
+        var count = item && item.count !== undefined ? Number(item.count) : 0;
+        var checked = Array.isArray(state.filters[facetName]) && state.filters[facetName].indexOf(value) !== -1;
+        html += '<div class="list-group-item">';
+        html +=   '<label class="filter-option">';
+        html +=     '<input type="checkbox" data-role="facet" data-name="' + escapeHtml(facetName) + '" data-value="' + escapeHtml(value) + '" ' + (checked ? 'checked' : '') + ' />';
+        html +=     '<span>' + escapeHtml(value) + ' (' + count + ')</span>';
+        html +=   '</label>';
+        html += '</div>';
+      });
+      html += '</div>';
+    });
+
+    sidebarEl.innerHTML = html;
+  }
+
+  function buildProductCard(item) {
+    var url = item && item.url ? String(item.url) : '#';
+    var productId = item && item.id ? String(item.id) : '';
+    var name = item && item.name ? String(item.name) : '';
+    var picture = item && item.picture ? String(item.picture) : 'image/cache/placeholder-200x200.png';
+    var categoryName = item && item.category && item.category.name ? String(item.category.name) : '';
+    var brand = item && item.brand ? String(item.brand) : '';
+    var price = item && item.price ? String(item.price) : '';
+    var currency = item && item.currency ? String(item.currency) : '';
+    var description = item && item.description ? String(item.description) : '';
+    if (!description) {
+      description = categoryName ? ('Category: ' + categoryName) : '';
+    }
+    if (brand) {
+      description = 'Brand: ' + brand + (description ? ' | ' + description : '');
+    }
+    var priceText = price ? (price + (currency ? (' ' + currency) : '')) : '';
+
+    return ''
+      + '<div class="product-layout product-grid col-lg-4 col-md-4 col-sm-6 col-xs-12">'
+      + '  <div class="product-thumb">'
+      + '    <div class="image"><a href="' + escapeHtml(url) + '"><img src="' + escapeHtml(picture) + '" alt="' + escapeHtml(name) + '" title="' + escapeHtml(name) + '" class="img-responsive" /></a></div>'
+      + '    <div>'
+      + '      <div class="caption">'
+      + '        <h4><a href="' + escapeHtml(url) + '">' + escapeHtml(name) + '</a></h4>'
+      + '        <p>' + escapeHtml(description) + '</p>'
+      + '        <p class="price">' + escapeHtml(priceText) + '</p>'
+      + '      </div>'
+      + '      <div class="button-group">'
+      + '        <button type="button" class="js-eleads-cart" data-product-id="' + escapeHtml(productId) + '"><i class="fa fa-shopping-cart"></i> <span class="hidden-xs hidden-sm hidden-md">{{ button_cart|e('js') }}</span></button>'
+      + '        <button type="button" class="js-eleads-wishlist" data-product-id="' + escapeHtml(productId) + '" data-toggle="tooltip" title="{{ button_wishlist|e('js') }}"><i class="fa fa-heart"></i></button>'
+      + '        <button type="button" class="js-eleads-compare" data-product-id="' + escapeHtml(productId) + '" data-toggle="tooltip" title="{{ button_compare|e('js') }}"><i class="fa fa-exchange"></i></button>'
+      + '      </div>'
+      + '    </div>'
+      + '  </div>'
+      + '</div>';
+  }
+
+  function renderProducts(data) {
+    var items = (data.results && Array.isArray(data.results.items)) ? data.results.items : [];
+    productsEl.innerHTML = '';
+    if (!items.length) {
+      return;
+    }
+
+    var html = '';
+    items.forEach(function (item) {
+      html += buildProductCard(item);
+    });
+    productsEl.innerHTML = html;
+  }
+
+  function updatePager(data) {
+    var page = Number(data.page || 1);
+    var pages = Number(data.pages || 1);
+    pageInfoEl.textContent = 'Page ' + page + ' / ' + pages;
+    prevBtn.disabled = page <= 1;
+    nextBtn.disabled = page >= pages;
+  }
+
+  function updateStatus(data) {
+    var total = Number(data.total || 0);
+    statusEl.textContent = total + ' item(s) found';
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function bindSidebarEvents() {
+    sidebarEl.addEventListener('click', function (event) {
+      var btn = event.target.closest('[data-role="cat"]');
+      if (!btn) return;
+      state.category = btn.getAttribute('data-id') || '';
+      state.page = 1;
+      loadData();
+    });
+
+    sidebarEl.addEventListener('change', function (event) {
+      var input = event.target.closest('input[data-role="facet"]');
+      if (!input) return;
+      var name = input.getAttribute('data-name') || '';
+      var value = input.getAttribute('data-value') || '';
+      if (!name || !value) return;
+      if (!Array.isArray(state.filters[name])) state.filters[name] = [];
+
+      if (input.checked) {
+        if (state.filters[name].indexOf(value) === -1) state.filters[name].push(value);
+      } else {
+        state.filters[name] = state.filters[name].filter(function (v) { return v !== value; });
+        if (!state.filters[name].length) delete state.filters[name];
+      }
+
+      state.page = 1;
+      loadData();
+    });
+  }
+
+  function bindProductActionEvents() {
+    productsEl.addEventListener('click', function (event) {
+      var cartBtn = event.target.closest('.js-eleads-cart');
+      if (cartBtn) {
+        var cartId = cartBtn.getAttribute('data-product-id') || '';
+        if (cartId && window.cart && typeof window.cart.add === 'function') {
+          window.cart.add(cartId);
+        }
+        return;
+      }
+
+      var wishBtn = event.target.closest('.js-eleads-wishlist');
+      if (wishBtn) {
+        var wishId = wishBtn.getAttribute('data-product-id') || '';
+        if (wishId && window.wishlist && typeof window.wishlist.add === 'function') {
+          window.wishlist.add(wishId);
+        }
+        return;
+      }
+
+      var cmpBtn = event.target.closest('.js-eleads-compare');
+      if (cmpBtn) {
+        var cmpId = cmpBtn.getAttribute('data-product-id') || '';
+        if (cmpId && window.compare && typeof window.compare.add === 'function') {
+          window.compare.add(cmpId);
+        }
+      }
+    });
+  }
+
+  function loadData() {
+    if (projectId <= 0) {
+      statusEl.textContent = '{{ text_no_project|e('js') }}';
+      sidebarEl.innerHTML = '';
+      productsEl.innerHTML = '';
+        pageInfoEl.textContent = '';
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+      return;
+    }
+
+    statusEl.textContent = '{{ text_loading|e('js') }}';
+    pushState();
+
+    var params = buildRequestParams();
+    var url = new URL(apiUrl);
+    Object.keys(params).forEach(function (key) {
+      if (params[key] !== '' && params[key] !== null && params[key] !== undefined) {
+        url.searchParams.set(key, params[key]);
+      }
+    });
+
+    fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    })
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status);
+        }
+        return response.json();
+      })
+      .then(function (data) {
+        buildSidebar(data || {});
+        renderProducts(data || {});
+        updatePager(data || {});
+        updateStatus(data || {});
+      })
+      .catch(function () {
+        statusEl.textContent = 'Failed to load data';
+        sidebarEl.innerHTML = '';
+        productsEl.innerHTML = '';
+            pageInfoEl.textContent = '';
+      });
+  }
+
+  function bindToolbarEvents() {
+    if (queryInput) {
+      queryInput.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter') return;
+        state.query = queryInput.value.trim();
+        state.page = 1;
+        loadData();
+      });
+    }
+
+    if (sortInput) {
+      sortInput.addEventListener('change', function () {
+        state.sort = sortInput.value;
+        state.page = 1;
+        loadData();
+      });
+    }
+
+    if (limitInput) {
+      limitInput.addEventListener('change', function () {
+        state.per_page = parseInt(limitInput.value || '20', 10) || 20;
+        state.page = 1;
+        loadData();
+      });
+    }
+
+    prevBtn.addEventListener('click', function () {
+      if (state.page <= 1) return;
+      state.page -= 1;
+      loadData();
+    });
+
+    nextBtn.addEventListener('click', function () {
+      state.page += 1;
+      loadData();
+    });
+  }
+
+  bindSidebarEvents();
+  bindToolbarEvents();
+  bindProductActionEvents();
+  loadData();
+})();
+</script>
+{% if filter_custom_css %}
+<style id="eleads-custom-css">
+{{ filter_custom_css|raw }}
+</style>
+{% endif %}

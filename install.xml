@@ -2,7 +2,7 @@
 <modification>
   <name>E-Leads OpenCart 3</name>
   <code>eleads_oc3</code>
-  <version>0.1.29</version>
+  <version>0.1.30</version>
   <author>E-Leads</author>
 
   <file path="catalog/controller/startup/seo_url.php">
@@ -27,6 +27,15 @@
 			}
 			if ($route === 'e-search/api/languages') {
 				$this->request->get['route'] = 'extension/module/eleads/languages';
+				return;
+			}
+			if (preg_match('#^([a-zA-Z0-9_-]+)/e-filter/?$#', $route, $m)) {
+				$this->request->get['route'] = 'extension/module/eleads/filterPage';
+				$this->request->get['lang'] = $m[1];
+				return;
+			}
+			if ($route === 'e-filter') {
+				$this->request->get['route'] = 'extension/module/eleads/filterPage';
 				return;
 			}
 			if (preg_match('#^([a-zA-Z0-9_-]+)/e-search/(.+)$#', $route, $m)) {
@@ -74,6 +83,15 @@
 			}
 			if ($route === 'e-search/api/languages') {
 				$this->request->get['route'] = 'extension/module/eleads/languages';
+				return;
+			}
+			if (preg_match('#^([a-zA-Z0-9_-]+)/e-filter/?$#', $route, $m)) {
+				$this->request->get['route'] = 'extension/module/eleads/filterPage';
+				$this->request->get['lang'] = $m[1];
+				return;
+			}
+			if ($route === 'e-filter') {
+				$this->request->get['route'] = 'extension/module/eleads/filterPage';
 				return;
 			}
 			if (preg_match('#^([a-zA-Z0-9_-]+)/e-search/(.+)$#', $route, $m)) {

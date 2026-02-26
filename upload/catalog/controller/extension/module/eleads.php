@@ -257,6 +257,82 @@ class ControllerExtensionModuleEleads extends Controller {
 		)));
 	}
 
+	public function filterPage() {
+		require_once DIR_SYSTEM . 'library/eleads/api_routes.php';
+
+		$this->load->language('product/category');
+
+		$requested_store_code = isset($this->request->get['language'])
+			? (string)$this->request->get['language']
+			: (isset($this->session->data['language']) ? (string)$this->session->data['language'] : (string)$this->config->get('config_language'));
+		if (isset($this->request->get['lang']) && (string)$this->request->get['lang'] !== '') {
+			$requested_store_code = (string)$this->request->get['lang'];
+		}
+		$store_language_code = $this->resolveStoreLanguageCode($requested_store_code);
+
+		$this->applyStoreLanguage($store_language_code);
+		$api_language = $this->normalizeFeedLang($store_language_code);
+		$project_id = $this->resolveFilterProjectId();
+
+		$this->document->setTitle('E-Filter');
+
+		$data = array();
+		$data['breadcrumbs'] = array(
+			array(
+				'text' => $this->language->get('text_home'),
+				'href' => $this->url->link('common/home', 'language=' . $store_language_code),
+			),
+			array(
+				'text' => 'E-Filter',
+				'href' => $this->buildFilterBaseUrl(),
+			),
+		);
+
+		$data['heading_title'] = 'E-Filter';
+		$data['text_empty'] = $this->language->get('text_empty');
+		$data['text_sort'] = $this->language->get('text_sort');
+		$data['text_limit'] = $this->language->get('text_limit');
+		$data['button_list'] = $this->language->get('button_list');
+		$data['button_grid'] = $this->language->get('button_grid');
+		$data['button_prev'] = 'Prev';
+		$data['button_next'] = 'Next';
+		$data['text_category'] = 'Categories';
+		$data['text_all_categories'] = 'All categories';
+		$data['text_loading'] = 'Loading...';
+		$data['text_no_project'] = 'project_id is not set. Save a valid API key in module settings first.';
+
+		$data['filter_api_url'] = EleadsApiRoutes::SEARCH_FILTERS;
+		$data['filter_project_id'] = $project_id;
+		$data['filter_language'] = $api_language;
+		$data['filter_base_url'] = $this->buildFilterBaseUrl();
+		$data['filter_state_json'] = json_encode($this->parseFilterStateFromQuery());
+		$data['filter_custom_css'] = $this->sanitizeFilterCustomCss((string)$this->config->get('module_eleads_filter_custom_css'));
+
+		$data['sort_options'] = array(
+			array('value' => '', 'name' => 'Default'),
+			array('value' => 'price_asc', 'name' => 'Price (Low > High)'),
+			array('value' => 'price_desc', 'name' => 'Price (High > Low)'),
+			array('value' => 'popularity', 'name' => 'Popularity'),
+		);
+		$data['limit_options'] = array(20, 25, 50, 75, 100);
+
+		$data['column_left'] = $this->load->controller('extension/module/eleads/filterSidebar');
+		$data['column_right'] = $this->load->controller('common/column_right');
+		$data['content_top'] = $this->load->controller('common/content_top');
+		$data['content_bottom'] = $this->load->controller('common/content_bottom');
+		$data['footer'] = $this->load->controller('common/footer');
+		$data['header'] = $this->load->controller('common/header');
+
+		$this->response->setOutput($this->load->view('extension/eleads/filter', $data));
+	}
+
+	public function filterSidebar() {
+		$data = array(
+			'filter_custom_css' => $this->sanitizeFilterCustomCss((string)$this->config->get('module_eleads_filter_custom_css')),
+		);
+		return $this->load->view('extension/eleads/filter_sidebar', $data);
+	}
+
 	public function seoPage() {
 		$slug = isset($this->request->get['slug']) ? trim((string)$this->request->get['slug']) : '';
 		$lang = isset($this->request->get['lang']) ? trim((string)$this->request->get['lang']) : '';
@@ -804,5 +880,109 @@ class ControllerExtensionModuleEleads extends Controller {
 			$url .= '?key=' . rawurlencode((string)$access_key);
 		}
 		return $url;
+	}
+
+	private function buildFilterBaseUrl() {
+		$base = $this->getSeoBaseUrl();
+		if (isset($this->request->get['lang']) && (string)$this->request->get['lang'] !== '') {
+			$lang = $this->resolveSeoSitemapLanguage((string)$this->request->get['lang']);
+			return $base . '/' . rawurlencode($lang) . '/e-filter';
+		}
+
+		return $base . '/e-filter';
+	}
+
+	private function parseFilterStateFromQuery() {
+		$state = array(
+			'query' => isset($this->request->get['query']) ? trim((string)$this->request->get['query']) : '',
+			'category' => isset($this->request->get['category']) ? trim((string)$this->request->get['category']) : '',
+			'sort' => isset($this->request->get['sort']) ? trim((string)$this->request->get['sort']) : '',
+			'page' => max(1, (int)(isset($this->request->get['page']) ? $this->request->get['page'] : 1)),
+			'per_page' => max(1, (int)(isset($this->request->get['per_page']) ? $this->request->get['per_page'] : 20)),
+			'filters' => array(),
+		);
+
+		if (isset($this->request->get['filters'])) {
+			$decoded = json_decode((string)$this->request->get['filters'], true);
+			if (is_array($decoded)) {
+				foreach ($decoded as $name => $values) {
+					$name = trim((string)$name);
+					if ($name === '') {
+						continue;
+					}
+					$row = array();
+					foreach ((array)$values as $value) {
+						$value = trim((string)$value);
+						if ($value !== '') {
+							$row[] = $value;
+						}
+					}
+					if (!empty($row)) {
+						$state['filters'][$name] = array_values(array_unique($row));
+					}
+				}
+			}
+		}
+
+		if (!in_array($state['sort'], array('', 'price_asc', 'price_desc', 'popularity'), true)) {
+			$state['sort'] = '';
+		}
+
+		return $state;
+	}
+
+	private function sanitizeFilterCustomCss($css) {
+		$css = str_replace(array('</style>', '</STYLE>'), '', (string)$css);
+		return trim($css);
+	}
+
+	private function resolveFilterProjectId() {
+		$project_id = (int)$this->config->get('module_eleads_project_id');
+		if ($project_id > 0) {
+			return $project_id;
+		}
+
+		$api_key = trim((string)$this->config->get('module_eleads_api_key'));
+		if ($api_key === '') {
+			return 0;
+		}
+
+		require_once DIR_SYSTEM . 'library/eleads/api_routes.php';
+		$ch = curl_init();
+		if ($ch === false) {
+			return 0;
+		}
+
+		curl_setopt($ch, CURLOPT_URL, EleadsApiRoutes::TOKEN_STATUS);
+		curl_setopt($ch, CURLOPT_HTTPGET, true);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+			'Authorization: Bearer ' . $api_key,
+			'Accept: application/json',
+		));
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 4);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+		$response = curl_exec($ch);
+		if ($response === false) {
+			curl_close($ch);
+			return 0;
+		}
+		$http_code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		curl_close($ch);
+		if ($http_code < 200 || $http_code >= 300) {
+			return 0;
+		}
+
+		$data = json_decode($response, true);
+		if (!is_array($data) || empty($data['ok']) || !isset($data['project_id'])) {
+			return 0;
+		}
+
+		$project_id = (int)$data['project_id'];
+		if ($project_id <= 0) {
+			return 0;
+		}
+
+		return $project_id;
 	}
 }
