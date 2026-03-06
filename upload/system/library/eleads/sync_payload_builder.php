@@ -114,6 +114,11 @@ class EleadsSyncPayloadBuilder {
 			$attributes_map['Опции'] = implode(' | ', $option_values);
 		}
 
+		$article = isset($product['sku']) ? trim((string)$product['sku']) : '';
+		if ($article !== '') {
+			$attributes_map['article'] = $article;
+		}
+
 		$product_payload = array(
 			'title' => (string)$product['name'],
 			'description' => (string)(isset($product['description']) ? $product['description'] : ''),

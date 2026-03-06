@@ -68,6 +68,7 @@ class EleadsOfferBuilder {
 				}
 
 				$params = EleadsFeedFormatter::prepareParams($attributes, $options, $selected_attribute_set, $selected_option_value_set);
+				$params = self::appendArticleParam($params, $product);
 
 				$offers[] = array(
 					'id' => $product_id,
@@ -109,6 +110,7 @@ class EleadsOfferBuilder {
 				}
 
 				$params = EleadsFeedFormatter::prepareParams($attributes, $options, $selected_attribute_set, $selected_option_value_set);
+				$params = self::appendArticleParam($params, $product);
 
 				$offers[] = array(
 					'id' => isset($variant['id']) ? $variant['id'] : $product_id,
@@ -135,6 +137,19 @@ class EleadsOfferBuilder {
 		}
 
 		return $offers;
+	}
+
+	private static function appendArticleParam($params, $product) {
+		$article = isset($product['sku']) ? trim((string)$product['sku']) : '';
+		if ($article === '') {
+			return $params;
+		}
+		$params[] = array(
+			'name' => 'article',
+			'value' => $article,
+			'filter' => false
+		);
+		return $params;
 	}
 
 	private static function resolveOfferSku($variant, $product) {
