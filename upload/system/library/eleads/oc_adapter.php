@@ -185,11 +185,15 @@ class EleadsOcAdapter {
 	}
 
 	public function getProducts() {
+		return $this->getProductsBatch(0, 1000000);
+	}
+
+	public function getProductsBatch($start, $limit) {
 		$this->registry->get('load')->model('catalog/product');
 		$filter = array(
 			'filter_status' => 1,
-			'start' => 0,
-			'limit' => 1000000,
+			'start' => (int)$start,
+			'limit' => (int)$limit,
 		);
 		$products = $this->registry->get('model_catalog_product')->getProducts($filter);
 		$result = array();

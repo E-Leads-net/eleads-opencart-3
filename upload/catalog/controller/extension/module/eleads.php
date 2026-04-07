@@ -23,7 +23,40 @@ class ControllerExtensionModuleEleads extends Controller {
 		}
 
 		$this->response->addHeader('Content-Type: application/xml; charset=utf-8');
-		$this->response->setOutput($result['xml']);
+		$this->streamFeedFile(isset($result['file']) ? $result['file'] : '');
+	}
+
+	private function streamFeedFile($file) {
+		if ($file === '' || !is_file($file)) {
+			$this->response->addHeader('HTTP/1.1 500 Internal Server Error');
+			return;
+		}
+
+		$this->response->addHeader('Content-Length: ' . filesize($file));
+		foreach (headers_list() as $header) {
+			if (stripos($header, 'Content-Length:') === 0) {
+				header_remove('Content-Length');
+				break;
+			}
+		}
+		foreach (headers_list() as $header) {
+			if (stripos($header, 'Content-Type:') === 0) {
+				header_remove('Content-Type');
+				break;
+			}
+		}
+		header('Content-Type: application/xml; charset=utf-8', true);
+		header('Content-Length: ' . filesize($file), true);
+
+		$handle = fopen($file, 'rb');
+		if ($handle) {
+			while (!feof($handle)) {
+				echo fread($handle, 65536);
+			}
+			fclose($handle);
+		}
+
+		exit;
 	}
 
 	public function sitemapSync() {
