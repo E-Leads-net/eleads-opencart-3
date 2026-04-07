@@ -1,6 +1,6 @@
 <?php
 class EleadsFeedJobManager {
-	const BATCH_SIZE = 100;
+	const BATCH_SIZE = 300;
 	const JOB_STALE_SECONDS = 600;
 
 	private $registry;
