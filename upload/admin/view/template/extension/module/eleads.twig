@@ -60,6 +60,10 @@
       #content .eleads-btn-group .btn:active {background: #cbd5f5;}
       #content .eleads-help {color: #64748b; font-size: 12px;}
       #content .eleads-pill {display: inline-block; padding: 4px 8px; border-radius: 999px; background: #e2e8f0; font-size: 12px;}
+      #content .eleads-feed-status {display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: #eef2ff; color: #334155; font-size: 12px; vertical-align: middle;}
+      #content .eleads-feed-status.is-running {background: #fef3c7; color: #92400e;}
+      #content .eleads-feed-status.is-ready {background: #dcfce7; color: #166534;}
+      #content .eleads-feed-status.is-failed {background: #fee2e2; color: #991b1b;}
     </style>
     {% if api_key_required %}
       <form action="{{ action }}" method="post" enctype="multipart/form-data" id="form-eleads" class="form-horizontal eleads-wrap">
@@ -115,12 +119,14 @@
                             {% for feed in feed_urls %}
                               <tr>
                                 <td>{{ feed.name }}</td>
-                                <td>
+                              <td>
                                   <a href="{{ feed.url }}" target="_blank">{{ feed.url }}</a>
+                                  <span class="eleads-feed-status" id="eleads-feed-status-{{ feed.code }}">{{ text_feed_idle }}</span>
                                 </td>
                               <td>
                                   <button type="button" class="btn btn-default btn-xs eleads-copy-btn" data-url="{{ feed.url }}">Copy</button>
                                   <a class="btn btn-default btn-xs" href="{{ feed.url }}" download="eleads-{{ feed.code }}.xml">Save</a>
+                                  <button type="button" class="btn btn-primary btn-xs eleads-generate-btn" data-lang="{{ feed.code }}" data-generate-url="{{ feed.generate_url }}" data-status-url="{{ feed.status_url }}">{{ button_generate }}</button>
                                 </td>
                               </tr>
                             {% endfor %}
@@ -400,6 +406,15 @@
     {% endif %}
     <script>
       (function() {
+        var eleadsApiKey = {{ eleads_api_key_js|json_encode|raw }};
+        var feedTexts = {
+          idle: {{ text_feed_idle|json_encode|raw }},
+          running: {{ text_feed_running|json_encode|raw }},
+          ready: {{ text_feed_ready|json_encode|raw }},
+          failed: {{ text_feed_failed|json_encode|raw }},
+          accepted: {{ text_feed_accepted|json_encode|raw }}
+        };
+
         window.eleadsSelectAllCategories = function(checked) {
           var tree = document.getElementById('eleads-categories-tree');
           if (!tree) return;
@@ -435,6 +450,96 @@
           btn.addEventListener('click', function() {
             var url = btn.getAttribute('data-url') || '';
             copyText(url);
+          });
+        });
+
+        function setFeedStatus(lang, status, error) {
+          var badge = document.getElementById('eleads-feed-status-' + lang);
+          if (!badge) return;
+          badge.classList.remove('is-running', 'is-ready', 'is-failed');
+
+          if (status === 'running' || status === 'accepted') {
+            badge.textContent = status === 'accepted' ? feedTexts.accepted : feedTexts.running;
+            badge.classList.add('is-running');
+            return;
+          }
+          if (status === 'ready') {
+            badge.textContent = feedTexts.ready;
+            badge.classList.add('is-ready');
+            return;
+          }
+          if (status === 'failed') {
+            badge.textContent = error ? (feedTexts.failed + ': ' + error) : feedTexts.failed;
+            badge.classList.add('is-failed');
+            return;
+          }
+
+          badge.textContent = feedTexts.idle;
+        }
+
+        function pollFeedStatus(lang, statusUrl) {
+          var maxAttempts = 120;
+          var attempts = 0;
+
+          function tick() {
+            attempts += 1;
+            fetch(statusUrl, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+                'Authorization': 'Bearer ' + eleadsApiKey
+              },
+              credentials: 'same-origin'
+            }).then(function(response) {
+              return response.json();
+            }).then(function(data) {
+              var status = data.status || 'idle';
+              setFeedStatus(lang, status, data.error || '');
+              if (status === 'running' && attempts < maxAttempts) {
+                window.setTimeout(tick, 1500);
+              }
+            }).catch(function() {
+              setFeedStatus(lang, 'failed', 'request_failed');
+            });
+          }
+
+          tick();
+        }
+
+        var generateButtons = document.querySelectorAll('.eleads-generate-btn');
+        Array.prototype.forEach.call(generateButtons, function(btn) {
+          btn.addEventListener('click', function() {
+            var lang = btn.getAttribute('data-lang') || '';
+            var generateUrl = btn.getAttribute('data-generate-url') || '';
+            var statusUrl = btn.getAttribute('data-status-url') || '';
+            if (!lang || !generateUrl || !statusUrl || !eleadsApiKey) {
+              return;
+            }
+
+            btn.disabled = true;
+            setFeedStatus(lang, 'accepted');
+
+            fetch(generateUrl, {
+              method: 'POST',
+              headers: {
+                'Accept': 'application/json',
+                'Authorization': 'Bearer ' + eleadsApiKey
+              },
+              credentials: 'same-origin'
+            }).then(function(response) {
+              return response.json();
+            }).then(function(data) {
+              if (data.error) {
+                setFeedStatus(lang, 'failed', data.error);
+                return;
+              }
+              setFeedStatus(lang, 'accepted');
+              pollFeedStatus(lang, statusUrl);
+            }).catch(function() {
+              setFeedStatus(lang, 'failed', 'request_failed');
+            }).finally(function() {
+              btn.disabled = false;
+            });
           });
         });
 

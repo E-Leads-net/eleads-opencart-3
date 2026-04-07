@@ -107,7 +107,7 @@ class EleadsFeedEngine {
 		return array('ok' => true, 'file' => $target_file);
 	}
 
-	private function getFeedFilePath($lang_code) {
+	public function getFeedFilePath($lang_code) {
 		$directory = rtrim(DIR_CACHE, '/\\') . '/eleads';
 		if (!is_dir($directory)) {
 			@mkdir($directory, 0775, true);
@@ -116,7 +116,7 @@ class EleadsFeedEngine {
 		return $directory . '/feed-' . preg_replace('/[^a-z0-9_-]/i', '-', (string)$lang_code) . '.xml';
 	}
 
-	private function writeHeader($handle, $shop_name, $email, $shop_url, $lang_code, $categories, $adapter) {
+	public function writeHeader($handle, $shop_name, $email, $shop_url, $lang_code, $categories, $adapter) {
 		$feed_date = date('Y-m-d H:i');
 
 		$this->writeLine($handle, '<?xml version="1.0" encoding="UTF-8"?>');
@@ -142,7 +142,7 @@ class EleadsFeedEngine {
 		$this->writeLine($handle, '<offers>');
 	}
 
-	private function writeOffer($handle, $offer) {
+	public function writeOffer($handle, $offer) {
 		$attrs = ' id="' . EleadsFeedFormatter::xmlEscape($offer['id']) . '"';
 		if (!empty($offer['group_id'])) {
 			$attrs .= ' group_id="' . EleadsFeedFormatter::xmlEscape($offer['group_id']) . '"';
@@ -181,7 +181,7 @@ class EleadsFeedEngine {
 		$this->writeLine($handle, '</offer>');
 	}
 
-	private function writeFooter($handle) {
+	public function writeFooter($handle) {
 		$this->writeLine($handle, '</offers>');
 		$this->writeLine($handle, '</shop>');
 		$this->writeLine($handle, '</yml_catalog>');

@@ -35,6 +35,254 @@ If an access key is configured:
 /eleads-yml/en.xml?key=YOUR_KEY
 ```
 
+## Feed Generation Workflow
+Starting from `0.1.33`, feed generation is no longer performed synchronously inside the public feed request.
+
+Current behavior:
+- `GET /eleads-yml/{lang}.xml` serves only an already generated XML file.
+- feed generation is started explicitly:
+  - from the **Generate** button in module admin
+  - or from the public module API endpoint
+- generation is incremental:
+  - one `status` request processes one products batch
+  - the client repeats polling until the feed becomes `ready`
+
+This design avoids:
+- PHP memory exhaustion on large catalogs
+- Cloudflare `524` timeout on long-running feed requests
+- partially generated XML being returned to integrations
+
+### Internal Feed Files
+For every language the module stores:
+- final file: `feed-{lang}.xml`
+- temp file during generation: `feed-{lang}.xml.tmp`
+- job metadata: `feed-{lang}.meta.json`
+- lock file: `feed-{lang}.lock`
+
+These files are stored under OpenCart cache storage:
+- `DIR_CACHE/eleads/`
+
+### Feed Job States
+Possible feed generation states:
+- `idle` — no generated file and no active job
+- `running` — generation is in progress
+- `ready` — feed file is fully generated and can be downloaded
+- `failed` — generation stopped with an error
+
+### Admin Button Behavior
+In **Export Settings → Feed URLs**, each feed row has a **Generate** button.
+
+The admin UI uses the same public API routes as external integrations:
+1. `POST /eleads-yml/api/generate?lang=ru`
+2. repeated `GET /eleads-yml/api/status?lang=ru`
+3. when status becomes `ready`, the existing public feed URL can be opened:
+   - `/eleads-yml/ru.xml`
+
+This means that successful admin-side generation is also a valid end-to-end test of the public integration protocol.
+
+## Feed Generation API
+### 1) Start Feed Generation
+Starts or reuses an incremental feed generation job for a target language.
+
+Endpoint:
+```http
+POST /eleads-yml/api/generate?lang=ru
+Authorization: Bearer <API_KEY>
+Accept: application/json
+```
+
+Language input:
+- query parameter: `?lang=ru`
+- or JSON body:
+```json
+{"lang":"ru"}
+```
+- if both are missing, the module uses the store default language
+
+Authorization rules:
+- `Authorization: Bearer <API_KEY>` is required
+- token must match module setting `module_eleads_api_key`
+
+Successful response:
+```json
+{
+  "status": "accepted",
+  "lang": "ru",
+  "job": {
+    "status": "running",
+    "lang": "ru",
+    "processed": 0,
+    "batch_size": 100,
+    "updated_at": "2026-04-07 12:00:00",
+    "finished_at": "",
+    "size": 0,
+    "error": ""
+  }
+}
+```
+
+Notes:
+- the endpoint returns quickly
+- it does not build the entire feed in one request
+- it prepares the job, creates temp files and writes feed header/categories
+- actual product processing is performed by `status` polling requests
+
+Error responses:
+- `401`: `{"error":"api_key_missing"}` or `{"error":"unauthorized"}`
+- `405`: `{"error":"method_not_allowed"}`
+- `500`: `{"error":"generation_failed"}` or another internal error code
+
+Curl example:
+```bash
+curl -X POST "https://example.com/eleads-yml/api/generate?lang=ru" \
+  -H "Authorization: Bearer <API_KEY>" \
+  -H "Accept: application/json"
+```
+
+### 2) Feed Generation Status
+Reads current feed status and advances generation by one batch when the job is running.
+
+Endpoint:
+```http
+GET /eleads-yml/api/status?lang=ru
+Authorization: Bearer <API_KEY>
+Accept: application/json
+```
+
+Behavior:
+- if feed is `ready`, returns `ready`
+- if feed is `failed`, returns `failed`
+- if feed is `running`, this request processes the next batch of products
+- when the final batch is processed, the module:
+  - writes closing XML tags
+  - atomically renames `feed-{lang}.xml.tmp` to `feed-{lang}.xml`
+  - sets state to `ready`
+
+Running response example:
+```json
+{
+  "status": "running",
+  "lang": "ru",
+  "processed": 300,
+  "batch_size": 100,
+  "updated_at": "2026-04-07 12:00:15",
+  "finished_at": "",
+  "size": 0,
+  "error": ""
+}
+```
+
+Ready response example:
+```json
+{
+  "status": "ready",
+  "lang": "ru",
+  "processed": 1248,
+  "batch_size": 100,
+  "updated_at": "2026-04-07 12:01:03",
+  "finished_at": "2026-04-07 12:01:03",
+  "size": 5821943,
+  "error": ""
+}
+```
+
+Failed response example:
+```json
+{
+  "status": "failed",
+  "lang": "ru",
+  "processed": 700,
+  "batch_size": 100,
+  "updated_at": "2026-04-07 12:00:40",
+  "finished_at": "2026-04-07 12:00:40",
+  "size": 0,
+  "error": "write_failed"
+}
+```
+
+Error responses:
+- `401`: `{"error":"api_key_missing"}` or `{"error":"unauthorized"}`
+- `405`: `{"error":"method_not_allowed"}`
+- `500`: `{"error":"generation_failed"}`
+
+Curl example:
+```bash
+curl -X GET "https://example.com/eleads-yml/api/status?lang=ru" \
+  -H "Authorization: Bearer <API_KEY>" \
+  -H "Accept: application/json"
+```
+
+### 3) Download Ready Feed
+The public feed URL serves only a ready XML file.
+
+Endpoint:
+```http
+GET /eleads-yml/{lang}.xml
+```
+
+Examples:
+- `/eleads-yml/en.xml`
+- `/eleads-yml/ru.xml`
+- `/eleads-yml/uk.xml`
+
+Rules:
+- if feed access key is configured, append `?key=<access_key>`
+- if the feed file does not exist yet, the endpoint returns `404`
+- the endpoint does not start generation
+
+Example:
+```bash
+curl -L "https://example.com/eleads-yml/ru.xml?key=<FEED_ACCESS_KEY>"
+```
+
+## Recommended Integration Flow
+This is the intended algorithm for external projects that need a fresh feed before download.
+
+### Step-by-step
+1. Start generation:
+```bash
+curl -X POST "https://example.com/eleads-yml/api/generate?lang=ru" \
+  -H "Authorization: Bearer <API_KEY>" \
+  -H "Accept: application/json"
+```
+
+2. Poll status every `1-3` seconds:
+```bash
+curl -X GET "https://example.com/eleads-yml/api/status?lang=ru" \
+  -H "Authorization: Bearer <API_KEY>" \
+  -H "Accept: application/json"
+```
+
+3. While response is:
+- `running` → continue polling
+- `failed` → stop and handle error
+- `ready` → download the final feed file
+
+4. Download final feed:
+```bash
+curl -L "https://example.com/eleads-yml/ru.xml?key=<FEED_ACCESS_KEY>"
+```
+
+### Pseudocode
+```text
+POST /eleads-yml/api/generate?lang=ru
+repeat:
+  GET /eleads-yml/api/status?lang=ru
+  if status == ready:
+    GET /eleads-yml/ru.xml
+    stop
+  if status == failed:
+    stop with error
+  sleep 2 seconds
+```
+
+### Why the Protocol Works This Way
+- no cron is required
+- no background worker process is required
+- each status poll advances generation by one safe batch
+- large feeds can be built on shared hosting without long blocking requests
+- final feed consumers still download a normal XML file from the usual URL
+
 ## SEO Pages
 ### Sitemap
 - URL: `/e-search/sitemap.xml`

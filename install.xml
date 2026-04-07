@@ -2,7 +2,7 @@
 <modification>
   <name>E-Leads OpenCart 3</name>
   <code>eleads_oc3</code>
-  <version>0.1.33</version>
+  <version>0.1.34</version>
   <author>E-Leads</author>
 
   <file path="catalog/controller/startup/seo_url.php">
@@ -19,6 +19,14 @@
 			}
 			if ($route === 'eleads-yml/api/feeds') {
 				$this->request->get['route'] = 'extension/module/eleads/feeds';
+				return;
+			}
+			if ($route === 'eleads-yml/api/generate') {
+				$this->request->get['route'] = 'extension/module/eleads/generateFeed';
+				return;
+			}
+			if ($route === 'eleads-yml/api/status') {
+				$this->request->get['route'] = 'extension/module/eleads/feedStatus';
 				return;
 			}
 			if ($route === 'e-search/sitemap-sync' || $route === 'e-search/api/sitemap-sync') {
@@ -75,6 +83,14 @@
 			}
 			if ($route === 'eleads-yml/api/feeds') {
 				$this->request->get['route'] = 'extension/module/eleads/feeds';
+				return;
+			}
+			if ($route === 'eleads-yml/api/generate') {
+				$this->request->get['route'] = 'extension/module/eleads/generateFeed';
+				return;
+			}
+			if ($route === 'eleads-yml/api/status') {
+				$this->request->get['route'] = 'extension/module/eleads/feedStatus';
 				return;
 			}
 			if ($route === 'e-search/sitemap-sync' || $route === 'e-search/api/sitemap-sync') {

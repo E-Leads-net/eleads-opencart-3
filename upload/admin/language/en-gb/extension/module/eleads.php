@@ -48,6 +48,7 @@ $_['help_filter_custom_css'] = 'Styles in this field are applied only on /e-filt
 // Buttons
 $_['button_save'] = 'Save';
 $_['button_cancel'] = 'Cancel';
+$_['button_generate'] = 'Generate';
 
 // Tabs
 $_['tab_export'] = 'Export';
@@ -55,6 +56,13 @@ $_['tab_seo'] = 'SEO';
 $_['tab_styles'] = 'Styles';
 $_['tab_api'] = 'API Key';
 $_['tab_update'] = 'Update';
+
+// Feed status
+$_['text_feed_idle'] = 'Not generated';
+$_['text_feed_running'] = 'Generating...';
+$_['text_feed_ready'] = 'Ready';
+$_['text_feed_failed'] = 'Failed';
+$_['text_feed_accepted'] = 'Started';
 
 // Error
 $_['error_permission'] = 'Warning: You do not have permission to modify E-Leads module.';
