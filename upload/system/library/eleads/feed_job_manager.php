@@ -220,7 +220,9 @@ class EleadsFeedJobManager {
 
 		flock($lock_handle, LOCK_UN);
 		fclose($lock_handle);
-		@unlink($paths['lock']);
+		if (is_file($paths['lock'])) {
+			unlink($paths['lock']);
+		}
 
 		return $this->finalizeMeta($this->readMeta($feed_lang), $paths);
 	}
@@ -309,7 +311,9 @@ class EleadsFeedJobManager {
 
 	private function clearTransientFiles(array $paths) {
 		@unlink($paths['temp']);
-		@unlink($paths['lock']);
+		if (is_file($paths['lock'])) {
+			unlink($paths['lock']);
+		}
 	}
 
 	private function isStale(array $meta) {
