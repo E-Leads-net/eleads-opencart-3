@@ -560,9 +560,7 @@
         function setLabelState(input) {
           var label = closestByClass(input, 'eleads-tree-label');
           if (!label) return;
-          if (input.indeterminate) {
-            label.classList.add('is-indeterminate');
-          } else {
+          if (!input.indeterminate) {
             label.classList.remove('is-indeterminate');
           }
         }
@@ -610,22 +608,21 @@
           }
           if (!children.length) return;
           var checkedCount = 0;
-          var indeterminateCount = 0;
+          var partialCount = 0;
           Array.prototype.forEach.call(children, function(cb) {
-            if (cb.indeterminate) indeterminateCount++;
+            var childLabel = closestByClass(cb, 'eleads-tree-label');
+            if ((childLabel && childLabel.classList.contains('is-indeterminate')) || cb.indeterminate) partialCount++;
             if (cb.checked) checkedCount++;
           });
-          if (checkedCount === children.length) {
-            checkbox.checked = true;
-            checkbox.indeterminate = false;
-          } else if (checkedCount === 0 && indeterminateCount === 0) {
-            checkbox.checked = false;
-            checkbox.indeterminate = false;
+          var label = closestByClass(checkbox, 'eleads-tree-label');
+          if (!label) return;
+
+          checkbox.indeterminate = false;
+          if ((checkedCount > 0 && checkedCount < children.length) || partialCount > 0) {
+            label.classList.add('is-indeterminate');
           } else {
-            checkbox.checked = false;
-            checkbox.indeterminate = true;
+            label.classList.remove('is-indeterminate');
           }
-          setLabelState(checkbox);
         }
 
         function updateParents(li) {
@@ -638,34 +635,10 @@
           }
         }
 
-        function setChildren(li, checked) {
-          var children = li.querySelectorAll('.eleads-tree-children input[type="checkbox"]');
-          Array.prototype.forEach.call(children, function(cb) {
-            cb.checked = checked;
-            cb.indeterminate = false;
-            setLabelState(cb);
-          });
-        }
-
         function initTreeState() {
           var items = tree.querySelectorAll('.eleads-tree-item');
           Array.prototype.forEach.call(Array.prototype.slice.call(items).reverse(), function(li) {
             updateNodeState(li);
-          });
-          Array.prototype.forEach.call(items, function(li) {
-            var childrenWrap = li.getElementsByClassName('eleads-tree-children')[0];
-            if (!childrenWrap) return;
-            li.classList.remove('is-open');
-            var children = childrenWrap.querySelectorAll('input[type="checkbox"]');
-            var open = false;
-            Array.prototype.forEach.call(children, function(cb) {
-              if (cb.indeterminate) {
-                open = true;
-              }
-            });
-            if (open) {
-              li.classList.add('is-open');
-            }
           });
         }
 
@@ -684,7 +657,6 @@
           if (!li) return;
           input.indeterminate = false;
           setLabelState(input);
-          setChildren(li, input.checked);
           updateParents(li);
         });
 
