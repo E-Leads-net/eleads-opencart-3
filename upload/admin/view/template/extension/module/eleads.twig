@@ -26,6 +26,7 @@
     {% endif %}
 
     <style>
+      body > #container {overflow: visible !important;}
       #content .eleads-wrap {max-width: 1200px;}
       #content .eleads-card {background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);}
       #content .eleads-card .panel-heading {background: #f8fafc; border-bottom: 1px solid #e5e7eb; border-top-left-radius: 10px; border-top-right-radius: 10px;}
@@ -635,6 +636,27 @@
           }
         }
 
+        function setChildren(li, checked) {
+          var childrenWrap = null;
+          for (var i = 0; i < li.children.length; i++) {
+            if (li.children[i].classList && li.children[i].classList.contains('eleads-tree-children')) {
+              childrenWrap = li.children[i];
+              break;
+            }
+          }
+          if (!childrenWrap) return;
+
+          var children = childrenWrap.querySelectorAll('input[type="checkbox"][name="module_eleads_categories[]"]');
+          Array.prototype.forEach.call(children, function(cb) {
+            cb.checked = checked;
+            cb.indeterminate = false;
+            var label = closestByClass(cb, 'eleads-tree-label');
+            if (label) {
+              label.classList.remove('is-indeterminate');
+            }
+          });
+        }
+
         function initTreeState() {
           var items = tree.querySelectorAll('.eleads-tree-item');
           Array.prototype.forEach.call(Array.prototype.slice.call(items).reverse(), function(li) {
@@ -657,6 +679,7 @@
           if (!li) return;
           input.indeterminate = false;
           setLabelState(input);
+          setChildren(li, input.checked);
           updateParents(li);
         });
 
