@@ -178,6 +178,7 @@
               <div class="eleads-tree" id="eleads-categories-tree">
                 {{ categories_tree_html|raw }}
               </div>
+              <input type="hidden" name="module_eleads_categories_serialized" id="eleads-categories-serialized" value="{{ module_eleads_categories|join(',') }}">
             </div>
           </div>
 
@@ -204,7 +205,7 @@
                     <li class="eleads-tree-item">
                       <span class="eleads-tree-spacer"></span>
                       <label class="eleads-tree-label">
-                        <input type="checkbox" name="module_eleads_filter_attributes[]" value="{{ attribute.attribute_id }}" {% if attribute.attribute_id in module_eleads_filter_attributes %}checked{% endif %}>
+                        <input type="checkbox" class="eleads-filter-attribute-checkbox" value="{{ attribute.attribute_id }}" {% if attribute.attribute_id in module_eleads_filter_attributes %}checked{% endif %}>
                         <span class="eleads-tree-box"></span>
                         <span class="eleads-tree-text">{{ attribute.name }}</span>
                       </label>
@@ -212,6 +213,7 @@
                   {% endfor %}
                 </ul>
               </div>
+              <input type="hidden" name="module_eleads_filter_attributes_serialized" id="eleads-filter-attributes-serialized" value="{{ module_eleads_filter_attributes|join(',') }}">
             </div>
           </div>
 
@@ -240,7 +242,7 @@
                         <li class="eleads-tree-item">
                           <span class="eleads-tree-spacer"></span>
                           <label class="eleads-tree-label">
-                            <input type="checkbox" name="module_eleads_filter_option_values[]" value="{{ value.option_value_id }}" {% if value.option_value_id in module_eleads_filter_option_values %}checked{% endif %}>
+                            <input type="checkbox" class="eleads-filter-option-checkbox" value="{{ value.option_value_id }}" {% if value.option_value_id in module_eleads_filter_option_values %}checked{% endif %}>
                             <span class="eleads-tree-box"></span>
                             <span class="eleads-tree-text">{{ option.name }}: {{ value.name }}</span>
                           </label>
@@ -250,6 +252,7 @@
                   {% endfor %}
                 </ul>
               </div>
+              <input type="hidden" name="module_eleads_filter_option_values_serialized" id="eleads-filter-options-serialized" value="{{ module_eleads_filter_option_values|join(',') }}">
             </div>
           </div>
 
@@ -532,7 +535,7 @@
         });
 
         function getAllCheckboxes() {
-          return tree.querySelectorAll('input[type="checkbox"][name="module_eleads_categories[]"]');
+          return tree.querySelectorAll('.eleads-category-checkbox');
         }
 
         function closestByClass(node, className) {
@@ -645,7 +648,7 @@
           }
           if (!childrenWrap) return;
 
-          var children = childrenWrap.querySelectorAll('input[type="checkbox"][name="module_eleads_categories[]"]');
+          var children = childrenWrap.querySelectorAll('.eleads-category-checkbox');
           Array.prototype.forEach.call(children, function(cb) {
             cb.checked = checked;
             cb.indeterminate = false;
@@ -673,7 +676,7 @@
 
         tree.addEventListener('change', function(e) {
           var input = closestInput(e.target);
-          if (!input || input.type !== 'checkbox' || input.name !== 'module_eleads_categories[]') return;
+          if (!input || input.type !== 'checkbox' || !input.classList.contains('eleads-category-checkbox')) return;
           var li = closestByClass(input, 'eleads-tree-item');
           if (!li) return;
           input.indeterminate = false;
@@ -717,6 +720,26 @@
         }
         if (attrToggle) attrToggle.addEventListener('change', refresh);
         if (optToggle) optToggle.addEventListener('change', refresh);
+
+        function syncSerializedSelection(selector, hiddenId) {
+          var hidden = document.getElementById(hiddenId);
+          if (!hidden) return;
+          var values = [];
+          var inputs = document.querySelectorAll(selector);
+          Array.prototype.forEach.call(inputs, function(input) {
+            if (input.checked) values.push(input.value);
+          });
+          hidden.value = values.join(',');
+        }
+
+        function syncSerializedSelections() {
+          syncSerializedSelection('.eleads-category-checkbox', 'eleads-categories-serialized');
+          syncSerializedSelection('.eleads-filter-attribute-checkbox', 'eleads-filter-attributes-serialized');
+          syncSerializedSelection('.eleads-filter-option-checkbox', 'eleads-filter-options-serialized');
+        }
+
+        var settingsForm = document.getElementById('form-eleads');
+        if (settingsForm) settingsForm.addEventListener('submit', syncSerializedSelections);
         initTreeState();
         refresh();
 
